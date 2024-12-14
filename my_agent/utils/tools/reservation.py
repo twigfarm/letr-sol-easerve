@@ -1,6 +1,7 @@
 from langchain.tools import Tool
 from langchain_core.tools import tool
 from my_agent.utils.rpc import get_reservations_by_phone, update_reservation_date, cancel_reservation
+from langchain_core.runnables.config import RunnableConfig
 # @tool vs Tool
 # Tool은 클래스이며 @tool 데코레이터는 함수를 Tool 객체로 더 쉽게 반환해준다.
 # @tool 사용 권장
@@ -9,12 +10,15 @@ from my_agent.utils.rpc import get_reservations_by_phone, update_reservation_dat
 # Tool to get reservations by phone
 
 @tool
-def search_reservation(phone: str):
+def search_reservation(config: RunnableConfig):
     """
     Retrieve reservations based on a phone number.
-    Input: a phone number as a string. Output: reservation details.
+    The phone_number is retrieved from the RunnableConfig
+    Don't ask user for the phone number.
+    Output: reservation details.
     """
-    return get_reservations_by_phone(phone)
+    phone_number = config.get("configurable", {}).get("phone_number")
+    return get_reservations_by_phone(phone_number)
 
 @tool
 def update_reservation(reservation_uuid: str, new_date: str):
