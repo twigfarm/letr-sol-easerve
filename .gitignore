@@ -2,3 +2,11 @@
 .ipynb_checkpoints
 .langgraph-data
 venv
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+
