@@ -1,5 +1,5 @@
 from langchain.tools import Tool
-
+from my_agent.utils.rpc import get_reservations_by_phone, update_reservation_date, cancel_reservation
 # @tool vs Tool
 # Tool은 클래스이며 @tool 데코레이터는 함수를 Tool 객체로 더 쉽게 반환해준다.
 # @tool 사용 권장
