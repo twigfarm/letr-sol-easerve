@@ -64,13 +64,10 @@ def buildGraph():
     return graph
 
 
-import os
 import uuid
 from dotenv import load_dotenv
 from langchain_core.messages import ToolMessage
 from my_agent.utils.utils import _print_event
-from supabase import create_client, Client
-
 
 def get_first_user_info():
     if config["configurable"]["phone_number"] != None:
@@ -78,13 +75,6 @@ def get_first_user_info():
 
 
 if __name__ == "__main__":
-    load_dotenv()
-
-    SUPABASE_URL = os.getenv("SUPABASE_URL")
-    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
     graph = buildGraph()
     thread_id = str(uuid.uuid4())
 
