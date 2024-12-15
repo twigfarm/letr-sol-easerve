@@ -1,4 +1,5 @@
 from langchain.tools import Tool
+from ..rpc import get_reservations_by_phone, update_reservation_date, cancel_reservation
 
 # @tool vs Tool
 # Tool은 클래스이며 @tool 데코레이터는 함수를 Tool 객체로 더 쉽게 반환해준다.
@@ -10,7 +11,9 @@ search_reservation = Tool(
     func=lambda phone: get_reservations_by_phone(phone),
     description=(
         "Retrieve reservations based on a phone number. "
+        "phone number is get from config: configurable: phone_number"
         "Input: a phone number as a string. Output: reservation details."
+        "if reservation data is empty stop find reservation data and return message"
     ),
 )
 
@@ -22,7 +25,7 @@ update_reservation = Tool(
     ),
     description=(
         "Update the date of an existing reservation. "
-        "Input: reservation_uuid (str), new_date (str in format YYYY-MM-DD). "
+        "Input: reservation_uuid (str), new_date (str in format YYYY-MM-DD HH:MM:SS). "
         "Output: Success message."
     ),
 )
