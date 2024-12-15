@@ -2,9 +2,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from re import M
 from typing_extensions import TypedDict
 from typing import Literal, Annotated
+
+
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages, AnyMessage
@@ -20,7 +26,6 @@ from my_agent.utils.tools.reservation import (
     sensitive_tools,
     sensitive_tool_names,
 )
-
 
 # Define the config
 class GraphConfig(TypedDict):
@@ -79,45 +84,78 @@ import uuid
 from dotenv import load_dotenv
 from langchain_core.messages import ToolMessage
 from my_agent.utils.utils import _print_event
-from supabase import create_client, Client
 
+import streamlit as st
 
 def get_first_user_info():
-    if config["configurable"]["phone_number"] != None:
-        config["configurable"]["phone_number"] = input("Plz Enter your phone number: ")
+    if st.session_state.config["configurable"]["phone_number"] == "":
+        st.session_state.config["configurable"]["phone_number"] = st.text_input("Enter your phone number")
 
 
 if __name__ == "__main__":
     load_dotenv()
 
-    SUPABASE_URL = os.getenv("SUPABASE_URL")
-    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
     graph = buildGraph()
-    thread_id = str(uuid.uuid4())
 
-    config = {"configurable": {"phone_number": "", "thread_id": thread_id}}
+    if "config" not in st.session_state:
+        thread_id = str(uuid.uuid4())
+        st.session_state.config = {"configurable": {"phone_number": "", "thread_id": thread_id}}
     get_first_user_info()
+    print(st.session_state.config)
 
-    while True:
-        question = input("Hello! Enter the question: ")
+    st.title("강아지 미용 예약 서비스 챗봇입니다!")
 
-        if question in ["q"]:
-            break
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Display chat messages from history on app rerun
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # React to user input
+    if prompt := st.chat_input("What is up?"):
+        # Display user message in chat message container
+        st.chat_message("user").markdown(prompt)
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+
+        # while True:
+            # question = input("Hello! Enter the question: ")
+
+            # if question in ["q"]:
+            #     break
         _printed = set()
+        formatted_messages = [
+            (message["role"], message["content"])
+            for message in st.session_state.messages
+        ]
 
         events = graph.stream(
-            {"messages": ("user", question)}, config, stream_mode="values"
+            # {"messages": ("user", prompt)}, st.session_state.config, stream_mode="values"
+            {"messages": formatted_messages}, st.session_state.config, stream_mode="values"
         )
         for event in events:
             _print_event(event, _printed)
+            final_response = event["messages"][-1].content
+        
 
-        snapshot = graph.get_state(config)
+        response = f"Echo: {final_response}"
+        # Display assistant response in chat message container
+        with st.chat_message("assistant"):
+            st.markdown(response)
+        # Add assistant response to chat history
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
+        snapshot = graph.get_state(st.session_state.config)
 
         while snapshot.next:
             try:
+                # if st.button("Yes"):
+                #     user_input = "y"
+                # elif st.button("No"):
+                #     user_input = "n"
                 user_input = input(
                     "다음의 행동에 동의하십니까? 동의하시면 'y'를 입력해주세요."
                     "만약 동의하지 않는다면 다른 답변을 입력해주시기 바랍니다.\n\n"
@@ -127,8 +165,9 @@ if __name__ == "__main__":
             if user_input.strip() == "y":
                 result = graph.invoke(
                     None,
-                    config,
+                    st.session_state.config,
                 )
+                print(f"result: {result}")
             else:
                 result = graph.invoke(
                     {
@@ -139,6 +178,6 @@ if __name__ == "__main__":
                             )
                         ]
                     },
-                    config,
+                    st.session_state.config,
                 )
-            snapshot = graph.get_state(config)
+            snapshot = graph.get_state(st.session_state.config,)

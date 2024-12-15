@@ -1,3 +1,5 @@
+from .supabase_client import supabase
+
 # RPC
 def get_reservations_by_phone(phone: str) -> dict:
     response = supabase.rpc(
@@ -17,6 +19,7 @@ def update_reservation_date(reservation_uuid: str, new_date: str):
 
 
 def cancel_reservation(reservation_uuid: str) -> dict:
+    print(reservation_uuid)
     response = supabase.rpc(
         "cancel_reservation", {"reservation_uuid": reservation_uuid}
     ).execute()
