@@ -91,6 +91,8 @@ def get_first_user_info():
     if st.session_state.config["configurable"]["phone_number"] == "":
         st.session_state.config["configurable"]["phone_number"] = st.text_input("Enter your phone number")
 
+def set_user_input(user_input):
+    st.session_state.user_input = user_input
 
 if __name__ == "__main__":
     load_dotenv()
@@ -127,13 +129,13 @@ if __name__ == "__main__":
             # if question in ["q"]:
             #     break
         _printed = set()
+
         formatted_messages = [
             (message["role"], message["content"])
             for message in st.session_state.messages
         ]
 
         events = graph.stream(
-            # {"messages": ("user", prompt)}, st.session_state.config, stream_mode="values"
             {"messages": formatted_messages}, st.session_state.config, stream_mode="values"
         )
         for event in events:
@@ -148,23 +150,35 @@ if __name__ == "__main__":
         # Add assistant response to chat history
         st.session_state.messages.append({"role": "assistant", "content": response})
 
-        snapshot = graph.get_state(st.session_state.config)
 
-        while snapshot.next:
+    if "user_input" not in st.session_state:
+        st.session_state.user_input = None
+    if st.session_state.user_input is None:
+        st.session_state.snapshot = graph.get_state(st.session_state.config)
+
+    print(f"st.session_state.snapshot: {st.session_state.snapshot}")
+    print(f"st.session_state.user_input: {st.session_state.user_input}")
+    while st.session_state.snapshot.next:
+        if st.session_state.user_input is None:
             try:
-                # if st.button("Yes"):
-                #     user_input = "y"
-                # elif st.button("No"):
-                #     user_input = "n"
-                user_input = input(
-                    "다음의 행동에 동의하십니까? 동의하시면 'y'를 입력해주세요."
-                    "만약 동의하지 않는다면 다른 답변을 입력해주시기 바랍니다.\n\n"
-                )
+                if st.button("Yes", on_click=set_user_input, args=("y",)):
+                    print("Yes")
+                if st.button("Yes", on_click=set_user_input, args=("n",)):
+                    print("No")
+                # user_input = input(
+                #     "다음의 행동에 동의하십니까? 동의하시면 'y'를 입력해주세요."
+                #     "만약 동의하지 않는다면 다른 답변을 입력해주시기 바랍니다.\n\n"
+                # )
             except:
                 user_input = "y"
-            if user_input.strip() == "y":
+        else:
+            if st.session_state.user_input.strip() == "y":
+                # formatted_messages = [
+                #     (message["role"], message["content"])
+                #     for message in st.session_state.messages
+                # ]
                 result = graph.invoke(
-                    None,
+                    {"messages": st.session_state.messages},
                     st.session_state.config,
                 )
                 print(f"result: {result}")
@@ -180,4 +194,5 @@ if __name__ == "__main__":
                     },
                     st.session_state.config,
                 )
-            snapshot = graph.get_state(st.session_state.config,)
+            set_user_input(None)
+        snapshot = graph.get_state(st.session_state.config)
