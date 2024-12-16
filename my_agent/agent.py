@@ -12,7 +12,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import tools_condition
 
 from my_agent.utils.state import ReservState
-from my_agent.utils.nodes import Assistant, user_info
+from my_agent.utils.nodes import Assistant, user_info, route_question_adaptive
 from my_agent.utils.utils import create_tool_node_with_fallback
 from my_agent.utils.runnables import assistant_runnable
 from my_agent.utils.tools.reservation import (
@@ -42,19 +42,29 @@ def route_tools(state: ReservState):
 def buildGraph():
     builder = StateGraph(ReservState)
 
-    builder.add_node("fetch_user_info", user_info)
-    builder.add_node("assistant", Assistant(assistant_runnable))
+    # builder.add_node("fetch_user_info", user_info)
+    builder.add_node("reservation_assistant", Assistant(assistant_runnable))
     builder.add_node("safe_tools", create_tool_node_with_fallback(safe_tools))
     builder.add_node("sensitive_tools", create_tool_node_with_fallback(sensitive_tools))
 
-    builder.add_edge(START, "fetch_user_info")
-    builder.add_edge("fetch_user_info", "assistant")
+    # builder.add_edge(START, "fetch_user_info")
+    # builder.add_edge("fetch_user_info", "assistant")
 
     builder.add_conditional_edges(
-        "assistant", route_tools, ["safe_tools", "sensitive_tools", END]
+        START,
+        route_question_adaptive,
+        {
+            "reservation_assistant": "reservation_assistant",
+            "rag_assistant": END,
+            "terminate": END,
+        },
     )
-    builder.add_edge("safe_tools", "assistant")
-    builder.add_edge("sensitive_tools", "assistant")
+
+    builder.add_conditional_edges(
+        "reservation_assistant", route_tools, ["safe_tools", "sensitive_tools", END]
+    )
+    builder.add_edge("safe_tools", "reservation_assistant")
+    builder.add_edge("sensitive_tools", "reservation_assistant")
 
     memory = MemorySaver()
     graph = builder.compile(
@@ -68,6 +78,7 @@ import uuid
 from dotenv import load_dotenv
 from langchain_core.messages import ToolMessage
 from my_agent.utils.utils import _print_event
+
 
 def get_first_user_info():
     if config["configurable"]["phone_number"] != None:
