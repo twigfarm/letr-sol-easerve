@@ -55,16 +55,6 @@ def buildGraph():
     builder.add_edge(START, "fetch_user_info")
     builder.add_edge("fetch_user_info", "assistant")
 
-    builder = StateGraph(ReservState)
-
-    builder.add_node("fetch_user_info", user_info)
-    builder.add_node("assistant", Assistant(assistant_runnable))
-    builder.add_node("safe_tools", create_tool_node_with_fallback(safe_tools))
-    builder.add_node("sensitive_tools", create_tool_node_with_fallback(sensitive_tools))
-
-    builder.add_edge(START, "fetch_user_info")
-    builder.add_edge("fetch_user_info", "assistant")
-
     builder.add_conditional_edges(
         "assistant", route_tools, ["safe_tools", "sensitive_tools", END]
     )
@@ -79,12 +69,10 @@ def buildGraph():
     return graph
 
 
-import os
 import uuid
 from dotenv import load_dotenv
 from langchain_core.messages import ToolMessage
 from my_agent.utils.utils import _print_event
-
 import streamlit as st
 
 def get_first_user_info():
