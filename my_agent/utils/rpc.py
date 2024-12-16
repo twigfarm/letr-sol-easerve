@@ -1,3 +1,5 @@
+from .supabase_client import supabase
+
 # RPC
 import os
 from supabase import create_client, Client
