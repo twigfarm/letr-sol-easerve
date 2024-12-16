@@ -9,6 +9,20 @@ from langchain_core.runnables.config import RunnableConfig
 
 # Tool to get reservations by phone
 
+from langchain.tools import StructuredTool
+from pydantic import BaseModel, Field
+
+class UpdateReservationDateInput(BaseModel):
+    reservation_uuid: str = Field(..., description="The UUID of the reservation to update")
+    new_date: str = Field(..., description="The new date and time for the reservation (format: YYYY-MM-DD HH:MM:SS)")
+
+update_reservation = StructuredTool.from_function(
+    func=update_reservation_date,
+    name="UpdateReservationDate",
+    description="Update the date of an existing reservation",
+    args_schema=UpdateReservationDateInput
+)
+
 @tool
 def search_reservation(config: RunnableConfig):
     """
@@ -20,14 +34,14 @@ def search_reservation(config: RunnableConfig):
     phone_number = config.get("configurable", {}).get("phone_number")
     return get_reservations_by_phone(phone_number)
 
-@tool
-def update_reservation(reservation_uuid: str, new_date: str):
-    """
-    Update the date of an existing reservation.
-    Input: reservation_uuid (str), new_date (str in format YYYY-MM-DD).
-    Output: Success message.
-    """
-    return update_reservation_date(reservation_uuid, new_date)
+# @tool
+# def update_reservation(reservation_uuid: str, new_date: str):
+#     """
+#     Update the date of an existing reservation.
+#     Input: reservation_uuid (str), new_date (str in format YYYY-MM-DD).
+#     Output: Success message.
+#     """
+#     return update_reservation_date(reservation_uuid, new_date)
 
 @tool
 def delete_reservation(reservation_uuid: str):

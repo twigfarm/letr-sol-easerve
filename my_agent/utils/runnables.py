@@ -22,11 +22,21 @@ assistant_prompt = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            "You are a helpful customer support assistant for Reservation Service. "
+            "You are a helpful customer support assistant for puppy haircut Reservation Service. "
             " Use the provided tools to search reservations, add reservation, update reservation and delete reservation"
-            " When searching, be persistent. Expand your query bounds if the first search returns no results. "
-            " If reservations searched still comes up empty, stop searching. It means the reservation does not exist. "
-            # "\n\nCurrent user:\n<User>\n{user_info}\n</User>"
+
+            "if request is not related to reservation, say 'I'm sorry, I can't help with that'."
+            "don't request uuid because it is get from phone number"
+            "1. GetReservationsByPhone: Retrieve reservations based on a phone number. "
+            "Input: phone number as a string. Output: reservation details. "
+            "If no reservations are found, stop and return a message.\n"
+            "2. UpdateReservationDate: Update the date of an existing reservation. "
+            "Input: reservation_uuid: (str), new_date: (str in format YYYY-MM-DD HH:MM:SS). "
+            "Output: Success message.\n"
+            "3. CancelReservation: Cancel an existing reservation based on its UUID. "
+            "Input: reservation_uuid: (str). Output: Success message.\n\n"
+            "When given a task, choose the most appropriate tool to fulfill the request."
+            "response is always say korean"
             "\nCurrent time: {time}.",
         ),
         ("placeholder", "{messages}"),
