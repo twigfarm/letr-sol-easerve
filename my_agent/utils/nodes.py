@@ -1,7 +1,9 @@
+from typing import Literal
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_openai import ChatOpenAI
 from my_agent.utils.state import ReservState
 from my_agent.utils.tools.user import fetch_user_info
+from my_agent.utils.runnables import router_runnable
 
 
 def user_info(state: ReservState):
@@ -27,3 +29,22 @@ class Assistant:
             else:
                 break
         return {"messages": result}
+
+
+def route_question_adaptive(
+    state: ReservState,
+) -> Literal["reservation_assistant", "rag_assistant", "terminate"]:
+    latest_message = state["messages"]
+    try:
+        result = router_runnable.invoke({"messages": latest_message})
+
+        datasource = result.tool
+
+        if datasource == "reservation_assistant":
+            return "reservation_assistant"
+        elif datasource == "rag_assistant":
+            return "rag_assistant"
+        else:
+            return "terminate"
+    except Exception as e:
+        return "terminate"
