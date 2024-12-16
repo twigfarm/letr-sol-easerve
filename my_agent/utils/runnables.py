@@ -34,6 +34,7 @@ assistant_prompt = ChatPromptTemplate.from_messages(
             "3. CancelReservation: Cancel an existing reservation based on its UUID. "
             "Input: reservation_uuid: (str). Output: Success message.\n\n"
             "When given a task, choose the most appropriate tool to fulfill the request."
+            "response is always say korean"
             "\n\nCurrent user:\n<User>\n{user_info}\n</User>"
             "\nCurrent time: {time}.",
         ),
