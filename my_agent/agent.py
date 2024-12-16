@@ -97,7 +97,8 @@ def set_user_input(user_input):
 if __name__ == "__main__":
     load_dotenv()
 
-    graph = buildGraph()
+    if 'graph' not in st.session_state:
+        st.session_state.graph = buildGraph()
 
     if "config" not in st.session_state:
         thread_id = str(uuid.uuid4())
@@ -135,7 +136,7 @@ if __name__ == "__main__":
             for message in st.session_state.messages
         ]
 
-        events = graph.stream(
+        events = st.session_state.graph.stream(
             {"messages": formatted_messages}, st.session_state.config, stream_mode="values"
         )
         for event in events:
@@ -154,7 +155,7 @@ if __name__ == "__main__":
     if "user_input" not in st.session_state:
         st.session_state.user_input = None
     if st.session_state.user_input is None:
-        st.session_state.snapshot = graph.get_state(st.session_state.config)
+        st.session_state.snapshot = st.session_state.graph.get_state(st.session_state.config)
 
     print(f"st.session_state.snapshot: {st.session_state.snapshot}")
     print(f"st.session_state.user_input: {st.session_state.user_input}")
@@ -165,25 +166,18 @@ if __name__ == "__main__":
                     print("Yes")
                 if st.button("Yes", on_click=set_user_input, args=("n",)):
                     print("No")
-                # user_input = input(
-                #     "다음의 행동에 동의하십니까? 동의하시면 'y'를 입력해주세요."
-                #     "만약 동의하지 않는다면 다른 답변을 입력해주시기 바랍니다.\n\n"
-                # )
             except:
                 user_input = "y"
-        else:
+        if st.session_state.user_input is not None:
             if st.session_state.user_input.strip() == "y":
-                # formatted_messages = [
-                #     (message["role"], message["content"])
-                #     for message in st.session_state.messages
-                # ]
-                result = graph.invoke(
-                    {"messages": st.session_state.messages},
+                result = st.session_state.graph.invoke(
+                    None,
                     st.session_state.config,
                 )
+                st.session_state.messages.append({"role": "assistant", "content": result["messages"][-1].content})
                 print(f"result: {result}")
             else:
-                result = graph.invoke(
+                result = st.session_state.graph.invoke(
                     {
                         "messages": [
                             ToolMessage(
@@ -194,5 +188,5 @@ if __name__ == "__main__":
                     },
                     st.session_state.config,
                 )
-            set_user_input(None)
-        snapshot = graph.get_state(st.session_state.config)
+            st.session_state.user_input = None
+            st.session_state.snapshot = st.session_state.graph.get_state(st.session_state.config)

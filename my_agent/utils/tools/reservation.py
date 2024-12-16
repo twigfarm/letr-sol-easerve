@@ -17,17 +17,31 @@ search_reservation = Tool(
     ),
 )
 
-# Tool to update reservation date
-update_reservation = Tool(
+# # Tool to update reservation date
+# update_reservation = Tool(
+#     name="UpdateReservationDate",
+#     func=lambda reservation_uuid, new_date: update_reservation_date(
+#         reservation_uuid, new_date
+#     ),
+#     description=(
+#         "Update the date of an existing reservation. "
+#         "Input: reservation_uuid (str), new_date (str in format YYYY-MM-DD HH:MM:SS). "
+#         "Output: Success message."
+#     ),
+# )
+
+from langchain.tools import StructuredTool
+from pydantic import BaseModel, Field
+
+class UpdateReservationDateInput(BaseModel):
+    reservation_uuid: str = Field(..., description="The UUID of the reservation to update")
+    new_date: str = Field(..., description="The new date and time for the reservation (format: YYYY-MM-DD HH:MM:SS)")
+
+update_reservation = StructuredTool.from_function(
+    func=update_reservation_date,
     name="UpdateReservationDate",
-    func=lambda reservation_uuid, new_date: update_reservation_date(
-        reservation_uuid, new_date
-    ),
-    description=(
-        "Update the date of an existing reservation. "
-        "Input: reservation_uuid (str), new_date (str in format YYYY-MM-DD HH:MM:SS). "
-        "Output: Success message."
-    ),
+    description="Update the date of an existing reservation",
+    args_schema=UpdateReservationDateInput
 )
 
 # Tool to cancel a reservation
