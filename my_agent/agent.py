@@ -1,24 +1,16 @@
 from dotenv import load_dotenv
-
-load_dotenv()
-
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 from re import M
 from typing_extensions import TypedDict
 from typing import Literal, Annotated
-
-
-
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages, AnyMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import tools_condition
-
 from my_agent.utils.state import ReservState
-from my_agent.utils.nodes import Assistant, user_info, route_question_adaptive
+from my_agent.utils.nodes import Assistant, route_question_adaptive, rag_assistant
 from my_agent.utils.utils import create_tool_node_with_fallback
 from my_agent.utils.runnables import assistant_runnable
 from my_agent.utils.tools.reservation import (
@@ -26,11 +18,11 @@ from my_agent.utils.tools.reservation import (
     sensitive_tools,
     sensitive_tool_names,
 )
+from my_agent.utils.tools.rag import rag_assistant_tool_node
 
 # Define the config
 class GraphConfig(TypedDict):
     model_name: Literal["openai"]
-
 
 def route_tools(state: ReservState):
     next_node = tools_condition(state)
@@ -51,6 +43,8 @@ def buildGraph():
     builder.add_node("reservation_assistant", Assistant(assistant_runnable))
     builder.add_node("safe_tools", create_tool_node_with_fallback(safe_tools))
     builder.add_node("sensitive_tools", create_tool_node_with_fallback(sensitive_tools))
+    builder.add_node("rag_assistant", rag_assistant)
+    builder.add_node("tools", rag_assistant_tool_node)
 
     # builder.add_edge(START, "fetch_user_info")
     # builder.add_edge("fetch_user_info", "assistant")
@@ -60,9 +54,14 @@ def buildGraph():
         route_question_adaptive,
         {
             "reservation_assistant": "reservation_assistant",
-            "rag_assistant": END,
+            "rag_assistant": "rag_assistant",
             "terminate": END,
         },
+    )
+
+    builder.add_conditional_edges(
+        "rag_assistant",
+        tools_condition,
     )
 
     builder.add_conditional_edges(
@@ -70,6 +69,7 @@ def buildGraph():
     )
     builder.add_edge("safe_tools", "reservation_assistant")
     builder.add_edge("sensitive_tools", "reservation_assistant")
+    builder.add_edge("tools", "rag_assistant")
 
     memory = MemorySaver()
     graph = builder.compile(
@@ -139,10 +139,10 @@ if __name__ == "__main__":
         for event in events:
             _print_event(event, _printed)
             final_response = event["messages"][-1].content
-        
+
 
         response = f"{final_response}"
-        if final_response is "":
+        if final_response == "":
             response = "진행하시겠습니까?"
         # Display assistant response in chat message container
         with st.chat_message("assistant"):

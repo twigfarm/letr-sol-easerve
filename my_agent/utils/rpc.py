@@ -1,7 +1,4 @@
 from .supabase_client import supabase
-from .tools.rag import Reservation
-
-# RPC
 import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -51,7 +48,7 @@ def get_service_by_breed_and_weight(breed_type: int, weight_range: int):
     return response
 
 def create_reservation(
-    reservation_info: Reservation,
+    reservation_info,
 ):
     response = supabase.rpc(
         "create_reservation",
