@@ -1,4 +1,5 @@
 from .supabase_client import supabase
+from .tools.rag import Reservation
 
 # RPC
 import os
@@ -38,3 +39,31 @@ def cancel_reservation(reservation_uuid: str) -> dict:
         "cancel_reservation", {"reservation_uuid": reservation_uuid}
     ).execute()
     return "reservation successfully cancelled"
+
+def get_service_by_breed_and_weight(breed_type: int, weight_range: int):
+    response = supabase.rpc(
+        "get_services_by_breed_and_weight",
+        {
+            "breed_type_id": breed_type,
+            "weight_range_id": weight_range
+        }
+    ).execute()
+    return response
+
+def create_reservation(
+    reservation_info: Reservation,
+):
+    response = supabase.rpc(
+        "create_reservation",
+        {
+            "pet_id":reservation_info.pet_id,
+            "status":reservation_info.status,
+            "service_name":reservation_info.service_name,
+            "weight":reservation_info.weight,
+            "reservation_date":reservation_info.reservation_date,
+            "price":reservation_info.price,
+        }
+    ).execute()
+    return response
+
+
