@@ -70,8 +70,7 @@ structured_reservation_llm = llm.with_structured_output(schema=Reservation)
 
 # 주어진 강아지 정보로부터 breed type을 채워넣는 함수
 def fill_breed_type(query: str, retrieved_docs):
-    prompt = pet_prompt_template.invoke({"query": query})
-    extracted_pet: Pet = structured_pet_llm.invoke(prompt)
+    extracted_pet: Pet = fill_pet_info_runnable.invoke({"query": query})
     breed_type_info = None
     for doc in retrieved_docs:
         # 각 문서의 page_content에서 name과 type을 파싱
@@ -87,9 +86,7 @@ def fill_breed_type(query: str, retrieved_docs):
     return extracted_pet
 
 def fill_reservation_info(query: str) -> Reservation:
-    prompt = reservation_prompt_template.invoke({"query": query})
-    extracted_reservation: Reservation = structured_reservation_llm.invoke(prompt)
-    return extracted_reservation
+    return fill_reservation_info_runnable.invoke({"query": query})
 
 @tool
 def get_service_menu(query: str):
@@ -157,3 +154,6 @@ def make_reservation(
 tools = [get_service_menu, make_reservation]
 llm_with_reservation_rag = llm.bind_tools(tools)
 rag_assistant_tool_node = ToolNode(tools=tools)
+fill_pet_info_runnable = pet_prompt_template | structured_pet_llm
+fill_reservation_info_runnable = reservation_prompt_template | structured_reservation_llm
+
