@@ -102,7 +102,6 @@ if __name__ == "__main__":
     if "config" not in st.session_state:
         thread_id = str(uuid.uuid4())
         st.session_state.config = {"configurable": {"phone_number": "", "thread_id": thread_id}}
-    # get_first_user_info()
     print(st.session_state.config)
 
     st.title("강아지 미용 예약 서비스 챗봇입니다!")
@@ -117,9 +116,7 @@ if __name__ == "__main__":
 
     # React to user input
     if prompt := st.chat_input("What is up?"):
-        # Display user message in chat message container
         st.chat_message("user").markdown(prompt)
-        # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
         if st.session_state.config["configurable"]["phone_number"] == "":
             st.session_state.config["configurable"]["phone_number"] = prompt
@@ -128,26 +125,19 @@ if __name__ == "__main__":
 
         _printed = set()
 
-        formatted_messages = [
-            (message["role"], message["content"])
-            for message in st.session_state.messages
-        ]
-
         events = st.session_state.graph.stream(
-            {"messages": formatted_messages}, st.session_state.config, stream_mode="values"
+            {"messages": st.session_state.messages}, st.session_state.config, stream_mode="values"
         )
         for event in events:
             _print_event(event, _printed)
             final_response = event["messages"][-1].content
-
+            st.session_state.event = event
 
         response = f"{final_response}"
         if final_response == "":
             response = "진행하시겠습니까?"
-        # Display assistant response in chat message container
         with st.chat_message("assistant"):
             st.markdown(response)
-        # Add assistant response to chat history
         st.session_state.messages.append({"role": "assistant", "content": response})
 
 
@@ -157,8 +147,6 @@ if __name__ == "__main__":
         st.session_state.snapshot = st.session_state.graph.get_state(st.session_state.config)
 
     # print(f"st.session_state.snapshot: {st.session_state.snapshot}")
-    # print(f"st.session_state.user_input: {st.session_state.user_input}")
-    print(f"st.session_state.messages: {st.session_state.messages}")
     is_in_snapshot = False
     while st.session_state.snapshot.next:
         is_in_snapshot = True
@@ -168,7 +156,6 @@ if __name__ == "__main__":
                     print("Yes")
                 if st.button("No", on_click=set_user_input, args=("n",)):
                     print("No")
-                st.write('<style>div.row-widget.stRadio > div{flex-direction:row;}</style>', unsafe_allow_html=True)
             except:
                 user_input = "y"
         if st.session_state.user_input is not None:
@@ -184,13 +171,14 @@ if __name__ == "__main__":
                     {
                         "messages": [
                             ToolMessage(
-                                tool_call_id=event["messages"][-1].tool_calls[0]["id"],
-                                content=f"API call denied by user. Reasoning: '{user_input}'. Continue assisting, accounting for the user's input.",
+                                tool_call_id=st.session_state.event["messages"][-1].tool_calls[0]["id"],
+                                content=f"API call denied by user. Reasoning: 'user abort tool'. Continue assisting, accounting for the user's input.",
                             )
                         ]
                     },
                     st.session_state.config,
                 )
+                st.session_state.messages[-1]['content'] = result["messages"][-1].content
             st.session_state.user_input = None
             st.session_state.snapshot = st.session_state.graph.get_state(st.session_state.config)
     if is_in_snapshot:
