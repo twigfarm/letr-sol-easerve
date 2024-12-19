@@ -34,6 +34,8 @@ class Assistant:
 def rag_assistant(state: ReservState):
     return {"messages": [llm_with_reservation_rag.invoke(state["messages"])]}
 
+
+
 def route_question_adaptive(
     state: ReservState,
 ) -> Literal["reservation_assistant", "rag_assistant", "terminate"]:

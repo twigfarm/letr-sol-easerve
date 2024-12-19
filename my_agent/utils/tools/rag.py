@@ -1,33 +1,14 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from langchain_core.tools import tool
-from langchain_community.document_loaders.csv_loader import CSVLoader
-from dotenv import load_dotenv
-import os
-from langchain_upstage import UpstageEmbeddings
-from supabase import create_client, Client
-from langchain_pinecone import PineconeVectorStore
-from .tools_prompt import pet_prompt_template, reservation_prompt_template, pet_info_chain, weight_dictionary
+from .tools_prompt import pet_prompt_template, reservation_prompt_template, grade_weight_range_chain, weight_dictionary
 from langchain_openai import ChatOpenAI
 from ..rpc import get_service_by_breed_and_weight, create_reservation
-from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.prebuilt import ToolNode
+from my_agent.utils.grade_doc import retrieval_grader
+from my_agent.utils.vector_db import breeds_database
 
 llm = ChatOpenAI(model="gpt-4o-mini")
-breeds_file_path = "csv/breeds.csv"
-breeds_loader = CSVLoader(breeds_file_path)
-breeds_data = breeds_loader.load()
-
-# 임베딩
-load_dotenv()
-UPSTAGE_API_KEY = os.getenv("UPSTAGE_API_KEY")
-embedding = UpstageEmbeddings(
-    api_key=UPSTAGE_API_KEY,
-    model="embedding-query"
-)
-
-# 벡터 스토어 불러오기
-breeds_database_index = "breeds"
-breeds_database = PineconeVectorStore(index_name=breeds_database_index, embedding=embedding)
 
 class Pet(BaseModel):
     """Information about a pet.
@@ -42,7 +23,7 @@ class Pet(BaseModel):
     Having a good description can help improve extraction results.
 """
     name: Optional[str] = Field(description="The name of the pet")
-    breedType: Optional[str] = Field(description="The type of the breed")
+    breed_type: Optional[str] = Field(description="The type of the breed")
     breed: Optional[str] = Field(description="The breed of the pet")
     weight: Optional[float] = Field(description="The weight of the pet")
     age: Optional[int] = Field(description="The age of the pet")
@@ -67,9 +48,11 @@ class Reservation(BaseModel):
 
 structured_pet_llm = llm.with_structured_output(schema=Pet)
 structured_reservation_llm = llm.with_structured_output(schema=Reservation)
+fill_pet_info_runnable = pet_prompt_template | structured_pet_llm
+fill_reservation_info_runnable = reservation_prompt_template | structured_reservation_llm
 
 # 주어진 강아지 정보로부터 breed type을 채워넣는 함수
-def fill_breed_type(query: str, retrieved_docs):
+def fill_breed_type(query: str, retrieved_docs) -> Pet:
     extracted_pet: Pet = fill_pet_info_runnable.invoke({"query": query})
     breed_type_info = None
     for doc in retrieved_docs:
@@ -82,7 +65,7 @@ def fill_breed_type(query: str, retrieved_docs):
     if breed:
         extracted_pet.breed = breed
     if breed_type_info:
-        extracted_pet.breedType = breed_type_info
+        extracted_pet.breed_type = breed_type_info
     return extracted_pet
 
 def fill_reservation_info(query: str) -> Reservation:
@@ -103,17 +86,15 @@ def get_service_menu(query: str):
         - Without using this tool, it is not possible to proceed with a grooming reservation as it ensures
           accurate matching of services based on the pet's breed type and weight range.
     """
-    # Step 1: Pet 정보 추출
-    retrieved_docs = breeds_database.similarity_search(query, k=1)
-    extracted_pet = fill_breed_type(query, retrieved_docs)
-    weight = int(extracted_pet.weight) if extracted_pet.weight else 1
-    weight_range = pet_info_chain.invoke({"pet_info": extracted_pet, "weight_dictionary": weight_dictionary})
-    weight_range = int(weight_range) if weight_range else 1
-    breed_type = int(extracted_pet.breedType) if extracted_pet.breedType else 1
-    print(f"weight: {weight}, weight_range: {weight_range}, breed_type: {breed_type}")
-    if breed_type != 4:
-        service_data = get_service_by_breed_and_weight(breed_type, weight_range)
-    else:
+    documents = breeds_database.similarity_search(query, k=1)
+    grade_result = retrieval_grader.invoke({"document": documents[0].page_content, "question": query})
+    if grade_result.binary_score == "no":
+         return "강아지 품종명을 정확하게 알려주세요. 예: '포메라니안, 5kg'"
+    pet_info: Pet = fill_breed_type(query, documents)
+    weight_range = grade_weight_range_chain.invoke({"pet_info": pet_info, "weight_dictionary": weight_dictionary})
+    if pet_info.breed_type != "4":
+        return get_service_by_breed_and_weight(int(pet_info.breed_type), weight_range)
+    else :
         service_data = get_service_by_breed_and_weight(3, weight_range) #일단 3으로 설정하고 다시 세팅, DB에 데이터가 없음
         price_per_kg = {
             "위생미용+목욕": 7000,
@@ -125,7 +106,7 @@ def get_service_menu(query: str):
         for service in service_data.data:
             service_name = service["service_name"]
             if service_name in price_per_kg:
-                service["price"] = price_per_kg[service_name] * weight
+                service["price"] = price_per_kg[service_name] * int(pet_info.weight)
     return service_data
 
 @tool
@@ -145,7 +126,6 @@ def make_reservation(
         - Without using this tool, it is not possible to proceed with a grooming reservation.
     """
     reservation_info: Reservation = fill_reservation_info(query)
-    print(f"reservation_info: {reservation_info}")
     response = create_reservation(
        reservation_info=reservation_info
     )
@@ -154,6 +134,4 @@ def make_reservation(
 tools = [get_service_menu, make_reservation]
 llm_with_reservation_rag = llm.bind_tools(tools)
 rag_assistant_tool_node = ToolNode(tools=tools)
-fill_pet_info_runnable = pet_prompt_template | structured_pet_llm
-fill_reservation_info_runnable = reservation_prompt_template | structured_reservation_llm
 
