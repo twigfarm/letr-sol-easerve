@@ -19,6 +19,7 @@ from my_agent.utils.tools.reservation import (
     sensitive_tool_names,
 )
 from my_agent.utils.tools.rag import rag_assistant_tool_node
+from my_agent.utils.utils import parse_phone_number
 
 # Define the config
 class GraphConfig(TypedDict):
@@ -86,10 +87,6 @@ from my_agent.utils.utils import _print_event
 import streamlit as st
 
 
-def get_first_user_info():
-    if st.session_state.config["configurable"]["phone_number"] == "":
-        st.session_state.config["configurable"]["phone_number"] = st.text_input("Enter your phone number")
-
 def set_user_input(user_input):
     st.session_state.user_input = user_input
 
@@ -107,7 +104,7 @@ if __name__ == "__main__":
     st.title("강아지 미용 예약 서비스 챗봇입니다!")
 
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "안녕하세요! 먼저 전화번호를 입력해주세요!"}]
+        st.session_state.messages = [{"role": "assistant", "content": "안녕하세요! 먼저 전화번호를 입력해주세요! ex)01012345678"}]
 
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
@@ -119,9 +116,15 @@ if __name__ == "__main__":
         st.chat_message("user").markdown(prompt)
         st.session_state.messages.append({"role": "user", "content": prompt})
         if st.session_state.config["configurable"]["phone_number"] == "":
-            st.session_state.config["configurable"]["phone_number"] = prompt
-            st.session_state.messages.append({"role": "assistant", "content": "전화번호 입력이 완료되었습니다!"})
-            st.rerun()
+            phone_number = parse_phone_number(prompt)
+            print(phone_number)
+            if phone_number == None:
+                st.session_state.messages.append({"role": "assistant", "content": "전화번호가 잘못 입력되었습니다 다시 입력해주세요."})
+                st.rerun()
+            else: 
+                st.session_state.config["configurable"]["phone_number"] = prompt
+                st.session_state.messages.append({"role": "assistant", "content": "전화번호 입력이 완료되었습니다!"})
+                st.rerun()
 
         _printed = set()
 
