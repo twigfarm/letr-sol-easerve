@@ -72,6 +72,7 @@ def rag_assistant(state: ReservState):
 
 
 def route_question_adaptive(state: ReservState):
+
     latest_message = state["messages"]
     try:
         result = router_runnable.invoke({"messages": latest_message})
@@ -80,13 +81,10 @@ def route_question_adaptive(state: ReservState):
 
         if datasource == "reservation_assistant":
             return Command(goto="reservation_assistant")
-            return "reservation_assistant"
         elif datasource == "rag_assistant":
             return Command(goto="rag_assistant")
-            return "rag_assistant"
         else:
             return Command(goto=END)
-            return "terminate"
     except Exception as e:
         return Command(goto=END)
         return "terminate"

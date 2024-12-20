@@ -21,6 +21,7 @@ from my_agent.utils.tools.reservation import (
     sensitive_tool_names,
 )
 from my_agent.utils.tools.rag import rag_assistant_tool_node
+from my_agent.utils.utils import parse_phone_number
 
 
 # Define the config
@@ -76,13 +77,6 @@ from my_agent.utils.utils import _print_event
 import streamlit as st
 
 
-def get_first_user_info():
-    if st.session_state.config["configurable"]["phone_number"] == "":
-        st.session_state.config["configurable"]["phone_number"] = st.text_input(
-            "Enter your phone number"
-        )
-
-
 def set_user_input(user_input):
     st.session_state.user_input = user_input
 
@@ -95,21 +89,14 @@ if __name__ == "__main__":
 
     if "config" not in st.session_state:
         thread_id = str(uuid.uuid4())
-        st.session_state.config = {
-            "configurable": {"phone_number": "", "thread_id": thread_id}
-        }
-    # get_first_user_info()
+
+        st.session_state.config = {"configurable": {"phone_number": "", "thread_id": thread_id}}
     print(st.session_state.config)
 
     st.title("강아지 미용 예약 서비스 챗봇입니다!")
 
     if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {
-                "role": "assistant",
-                "content": "안녕하세요! 먼저 전화번호를 입력해주세요!",
-            }
-        ]
+        st.session_state.messages = [{"role": "assistant", "content": "안녕하세요! 먼저 전화번호를 입력해주세요! ex)01012345678"}]
 
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
@@ -118,40 +105,33 @@ if __name__ == "__main__":
 
     # React to user input
     if prompt := st.chat_input("What is up?"):
-        # Display user message in chat message container
         st.chat_message("user").markdown(prompt)
-        # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
         if st.session_state.config["configurable"]["phone_number"] == "":
-            st.session_state.config["configurable"]["phone_number"] = prompt
-            st.session_state.messages.append(
-                {"role": "assistant", "content": "전화번호 입력이 완료되었습니다!"}
-            )
-            st.rerun()
-
+            phone_number = parse_phone_number(prompt)
+            print(phone_number)
+            if phone_number == None:
+                st.session_state.messages.append({"role": "assistant", "content": "전화번호가 잘못 입력되었습니다 다시 입력해주세요."})
+                st.rerun()
+            else: 
+                st.session_state.config["configurable"]["phone_number"] = prompt
+                st.session_state.messages.append({"role": "assistant", "content": "전화번호 입력이 완료되었습니다!"})
+                st.rerun()
         _printed = set()
 
-        formatted_messages = [
-            (message["role"], message["content"])
-            for message in st.session_state.messages
-        ]
-
         events = st.session_state.graph.stream(
-            {"messages": formatted_messages},
-            st.session_state.config,
-            stream_mode="values",
+            {"messages": st.session_state.messages}, st.session_state.config, stream_mode="values"
         )
         for event in events:
             _print_event(event, _printed)
             final_response = event["messages"][-1].content
+            st.session_state.event = event
 
         response = f"{final_response}"
         if final_response == "":
             response = "진행하시겠습니까?"
-        # Display assistant response in chat message container
         with st.chat_message("assistant"):
             st.markdown(response)
-        # Add assistant response to chat history
         st.session_state.messages.append({"role": "assistant", "content": response})
 
     if "user_input" not in st.session_state:
@@ -162,8 +142,6 @@ if __name__ == "__main__":
         )
 
     # print(f"st.session_state.snapshot: {st.session_state.snapshot}")
-    # print(f"st.session_state.user_input: {st.session_state.user_input}")
-    print(f"st.session_state.messages: {st.session_state.messages}")
     is_in_snapshot = False
     while st.session_state.snapshot.next:
         is_in_snapshot = True
@@ -173,10 +151,6 @@ if __name__ == "__main__":
                     print("Yes")
                 if st.button("No", on_click=set_user_input, args=("n",)):
                     print("No")
-                st.write(
-                    "<style>div.row-widget.stRadio > div{flex-direction:row;}</style>",
-                    unsafe_allow_html=True,
-                )
             except:
                 user_input = "y"
         if st.session_state.user_input is not None:
@@ -192,8 +166,10 @@ if __name__ == "__main__":
             else:
                 result = st.session_state.graph.invoke(
                     Command(resume={"action": "terminate"}),
+
                     st.session_state.config,
                 )
+                st.session_state.messages[-1]['content'] = result["messages"][-1].content
             st.session_state.user_input = None
             st.session_state.snapshot = st.session_state.graph.get_state(
                 st.session_state.config

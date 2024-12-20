@@ -2,6 +2,7 @@
 from langchain_core.runnables import RunnableLambda
 from langchain_core.messages import ToolMessage
 from langgraph.prebuilt import ToolNode
+import re
 
 
 def handle_tool_error(state) -> dict:
@@ -40,3 +41,14 @@ def _print_event(event: dict, _printed: set, max_length=1500):
                 msg_repr = msg_repr[:max_length] + " ... (truncated)"
             print(msg_repr)
             _printed.add(message.id)
+
+def parse_phone_number(text):
+    """
+    텍스트에서 휴대폰 번호를 파싱하는 함수
+    :param text: 입력 텍스트
+    :return: 파싱된 휴대폰 번호 리스트
+    """
+    # 대한민국 휴대폰 번호 정규식 패턴 (하이픈 없이)
+    pattern = r"(01[016789]\d{7,8})"
+    matches = re.match(pattern, text)
+    return matches
