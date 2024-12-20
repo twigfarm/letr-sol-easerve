@@ -1,11 +1,13 @@
 from dotenv import load_dotenv
 import sys
 import os
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from re import M
 from typing_extensions import TypedDict
 from typing import Literal, Annotated
 from langgraph.graph import StateGraph, START, END
+from langgraph.types import Command
 from langgraph.graph.message import add_messages, AnyMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import tools_condition
@@ -21,9 +23,11 @@ from my_agent.utils.tools.reservation import (
 from my_agent.utils.tools.rag import rag_assistant_tool_node
 from my_agent.utils.utils import parse_phone_number
 
+
 # Define the config
 class GraphConfig(TypedDict):
     model_name: Literal["openai"]
+
 
 def route_tools(state: ReservState):
     next_node = tools_condition(state)
@@ -37,37 +41,24 @@ def route_tools(state: ReservState):
     return "safe_tools"
 
 
+# 기본적인 연결은 add_edge로, add_conditional_edge 보다는 Command 처리방식이 권장됨
 def buildGraph():
     builder = StateGraph(ReservState)
 
-    # builder.add_node("fetch_user_info", user_info)
+    builder.add_node("first_question_router", route_question_adaptive)
     builder.add_node("reservation_assistant", Assistant(assistant_runnable))
     builder.add_node("safe_tools", create_tool_node_with_fallback(safe_tools))
     builder.add_node("sensitive_tools", create_tool_node_with_fallback(sensitive_tools))
     builder.add_node("rag_assistant", rag_assistant)
     builder.add_node("tools", rag_assistant_tool_node)
 
-    # builder.add_edge(START, "fetch_user_info")
-    # builder.add_edge("fetch_user_info", "assistant")
-
-    builder.add_conditional_edges(
-        START,
-        route_question_adaptive,
-        {
-            "reservation_assistant": "reservation_assistant",
-            "rag_assistant": "rag_assistant",
-            "terminate": END,
-        },
-    )
+    builder.add_edge(START, "first_question_router")
 
     builder.add_conditional_edges(
         "rag_assistant",
         tools_condition,
     )
 
-    builder.add_conditional_edges(
-        "reservation_assistant", route_tools, ["safe_tools", "sensitive_tools", END]
-    )
     builder.add_edge("safe_tools", "reservation_assistant")
     builder.add_edge("sensitive_tools", "reservation_assistant")
     builder.add_edge("tools", "rag_assistant")
@@ -75,7 +66,6 @@ def buildGraph():
     memory = MemorySaver()
     graph = builder.compile(
         checkpointer=memory,
-        interrupt_before=["sensitive_tools"],
     )
     return graph
 
@@ -90,14 +80,16 @@ import streamlit as st
 def set_user_input(user_input):
     st.session_state.user_input = user_input
 
+
 if __name__ == "__main__":
     load_dotenv()
 
-    if 'graph' not in st.session_state:
+    if "graph" not in st.session_state:
         st.session_state.graph = buildGraph()
 
     if "config" not in st.session_state:
         thread_id = str(uuid.uuid4())
+
         st.session_state.config = {"configurable": {"phone_number": "", "thread_id": thread_id}}
     print(st.session_state.config)
 
@@ -125,7 +117,6 @@ if __name__ == "__main__":
                 st.session_state.config["configurable"]["phone_number"] = prompt
                 st.session_state.messages.append({"role": "assistant", "content": "전화번호 입력이 완료되었습니다!"})
                 st.rerun()
-
         _printed = set()
 
         events = st.session_state.graph.stream(
@@ -143,11 +134,12 @@ if __name__ == "__main__":
             st.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
 
-
     if "user_input" not in st.session_state:
         st.session_state.user_input = None
     if st.session_state.user_input is None:
-        st.session_state.snapshot = st.session_state.graph.get_state(st.session_state.config)
+        st.session_state.snapshot = st.session_state.graph.get_state(
+            st.session_state.config
+        )
 
     # print(f"st.session_state.snapshot: {st.session_state.snapshot}")
     is_in_snapshot = False
@@ -164,26 +156,24 @@ if __name__ == "__main__":
         if st.session_state.user_input is not None:
             if st.session_state.user_input.strip() == "y":
                 result = st.session_state.graph.invoke(
-                    None,
+                    Command(resume={"action": "continue"}),
                     st.session_state.config,
                 )
-                st.session_state.messages[-1]['content'] = result["messages"][-1].content
+                st.session_state.messages[-1]["content"] = result["messages"][
+                    -1
+                ].content
                 print(f"result: {result}")
             else:
                 result = st.session_state.graph.invoke(
-                    {
-                        "messages": [
-                            ToolMessage(
-                                tool_call_id=st.session_state.event["messages"][-1].tool_calls[0]["id"],
-                                content=f"API call denied by user. Reasoning: 'user abort tool'. Continue assisting, accounting for the user's input.",
-                            )
-                        ]
-                    },
+                    Command(resume={"action": "terminate"}),
+
                     st.session_state.config,
                 )
                 st.session_state.messages[-1]['content'] = result["messages"][-1].content
             st.session_state.user_input = None
-            st.session_state.snapshot = st.session_state.graph.get_state(st.session_state.config)
+            st.session_state.snapshot = st.session_state.graph.get_state(
+                st.session_state.config
+            )
     if is_in_snapshot:
         is_in_snapshot = False
         st.rerun()
