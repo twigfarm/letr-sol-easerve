@@ -7,6 +7,7 @@ from re import M
 from typing_extensions import TypedDict
 from typing import Literal, Annotated
 from langgraph.graph import StateGraph, START, END
+from langgraph.types import Command
 from langgraph.graph.message import add_messages, AnyMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import tools_condition
@@ -43,34 +44,20 @@ def route_tools(state: ReservState):
 def buildGraph():
     builder = StateGraph(ReservState)
 
-    # builder.add_node("fetch_user_info", user_info)
+    builder.add_node("first_question_router", route_question_adaptive)
     builder.add_node("reservation_assistant", Assistant(assistant_runnable))
     builder.add_node("safe_tools", create_tool_node_with_fallback(safe_tools))
     builder.add_node("sensitive_tools", create_tool_node_with_fallback(sensitive_tools))
     builder.add_node("rag_assistant", rag_assistant)
     builder.add_node("tools", rag_assistant_tool_node)
 
-    # builder.add_edge(START, "fetch_user_info")
-    # builder.add_edge("fetch_user_info", "assistant")
-
-    builder.add_conditional_edges(
-        START,
-        route_question_adaptive,
-        {
-            "reservation_assistant": "reservation_assistant",
-            "rag_assistant": "rag_assistant",
-            "terminate": END,
-        },
-    )
+    builder.add_edge(START, "first_question_router")
 
     builder.add_conditional_edges(
         "rag_assistant",
         tools_condition,
     )
 
-    # builder.add_conditional_edges(
-    #     "reservation_assistant", route_tools, ["safe_tools", "sensitive_tools", END]
-    # )
     builder.add_edge("safe_tools", "reservation_assistant")
     builder.add_edge("sensitive_tools", "reservation_assistant")
     builder.add_edge("tools", "rag_assistant")
@@ -78,7 +65,6 @@ def buildGraph():
     memory = MemorySaver()
     graph = builder.compile(
         checkpointer=memory,
-        interrupt_before=["sensitive_tools"],
     )
     return graph
 
@@ -196,7 +182,7 @@ if __name__ == "__main__":
         if st.session_state.user_input is not None:
             if st.session_state.user_input.strip() == "y":
                 result = st.session_state.graph.invoke(
-                    None,
+                    Command(resume={"action": "continue"}),
                     st.session_state.config,
                 )
                 st.session_state.messages[-1]["content"] = result["messages"][
@@ -205,14 +191,7 @@ if __name__ == "__main__":
                 print(f"result: {result}")
             else:
                 result = st.session_state.graph.invoke(
-                    {
-                        "messages": [
-                            ToolMessage(
-                                tool_call_id=event["messages"][-1].tool_calls[0]["id"],
-                                content=f"API call denied by user. Reasoning: '{user_input}'. Continue assisting, accounting for the user's input.",
-                            )
-                        ]
-                    },
+                    Command(resume={"action": "terminate"}),
                     st.session_state.config,
                 )
             st.session_state.user_input = None
