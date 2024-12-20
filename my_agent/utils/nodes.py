@@ -4,7 +4,11 @@ from langchain_openai import ChatOpenAI
 from my_agent.utils.state import ReservState
 from my_agent.utils.tools.user import fetch_user_info
 from my_agent.utils.runnables import router_runnable
+from my_agent.utils.tools.reservation import sensitive_tool_names
 from .tools.rag import llm_with_reservation_rag
+from langgraph.types import interrupt, Command
+from langgraph.prebuilt import tools_condition
+from langgraph.graph import END
 
 
 def user_info(state: ReservState):
@@ -29,10 +33,23 @@ class Assistant:
                 state = {**state, "messages": messages}
             else:
                 break
-        return {"messages": result}
+        # Command로 node 이동
+        next_node = tools_condition({"messages": [result]})
+        if next_node == END:
+            print("terminate")
+            return Command(goto=END, update={"messages": result})
+        first_tool_call = result.tool_calls[0]
+        if first_tool_call["name"] in sensitive_tool_names:
+            print("sensitive")
+            return Command(goto="sensitive_tools", update={"messages": [result]})
+        else:
+            print("safe")
+            return Command(goto="safe_tools", update={"messages": [result]})
+
 
 def rag_assistant(state: ReservState):
     return {"messages": [llm_with_reservation_rag.invoke(state["messages"])]}
+
 
 def route_question_adaptive(
     state: ReservState,
