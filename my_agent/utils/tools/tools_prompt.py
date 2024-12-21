@@ -63,5 +63,5 @@ service_prompt = ChatPromptTemplate.from_template("""
 """)
 
 llm = ChatOpenAI(model="gpt-4o-mini")
-pet_info_chain = service_prompt | llm | StrOutputParser()
+grade_weight_range_chain = service_prompt | llm | StrOutputParser()
 
