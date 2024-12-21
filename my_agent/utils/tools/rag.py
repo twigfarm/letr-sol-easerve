@@ -4,6 +4,8 @@ from langchain_core.tools import tool
 from .tools_prompt import pet_prompt_template, reservation_prompt_template, grade_weight_range_chain, weight_dictionary
 from langchain_openai import ChatOpenAI
 from ..rpc import get_service_by_breed_and_weight, create_reservation
+from langchain_core.prompts import ChatPromptTemplate
+from datetime import datetime
 from langgraph.prebuilt import ToolNode
 from my_agent.utils.grade_doc import retrieval_grader
 from my_agent.utils.vector_db import breeds_database
@@ -131,7 +133,31 @@ def make_reservation(
     )
     return response
 
+#using co-star
+add_reservation_assistant_prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """
+            You are assisting users in creating dog grooming reservations easily and quickly. You assist users in booking grooming appointments for their dogs by gathering necessary information.
+            First, collect the dog’s breed and weight to determine the suitable grooming options using the provided tool(get_service_menu).
+            if user already input what type of grooming service pass the show options and final check of price
+            Then, display the available grooming options along with their prices. Finally, guide users to select a grooming service and their preferred date, and proceed to complete the reservation.
+            If the user provides all the necessary inputs, confirm the final price once more before proceeding. 
+            Guide users through the reservation process in clear, simple steps while making it easy to understand.
+            Concise and friendly conversational style.
+            Kind and professional tone.
+            Dog owners, including those who are new to making grooming reservations.
+            Provide questions in 2-3 sentences per step, wait for the user's input, and proceed to the next step based on their responses. Include examples to make it easier for the user.
+            If the selected date is earlier than today, adjust it to the same date in the next year.
+            """
+            "\nCurrent time: {time}.",
+        ),
+        ("human", "{messages}"),
+    ]
+).partial(time=datetime.now)
+
 tools = [get_service_menu, make_reservation]
 llm_with_reservation_rag = llm.bind_tools(tools)
 rag_assistant_tool_node = ToolNode(tools=tools)
-
+rag_runnable = add_reservation_assistant_prompt | llm_with_reservation_rag

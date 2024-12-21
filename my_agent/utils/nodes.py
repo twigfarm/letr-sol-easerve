@@ -4,8 +4,8 @@ from langchain_openai import ChatOpenAI
 from my_agent.utils.state import ReservState
 from my_agent.utils.tools.user import fetch_user_info
 from my_agent.utils.runnables import router_runnable
+from .tools.rag import rag_runnable
 from my_agent.utils.tools.reservation import sensitive_tool_names
-from .tools.rag import llm_with_reservation_rag
 from langgraph.types import interrupt, Command
 from langgraph.prebuilt import tools_condition
 from langgraph.graph import END
@@ -68,7 +68,7 @@ class Assistant:
 
 
 def rag_assistant(state: ReservState):
-    return {"messages": [llm_with_reservation_rag.invoke(state["messages"])]}
+    return {"messages": [rag_runnable.invoke(state["messages"])]}
 
 
 def route_question_adaptive(state: ReservState):

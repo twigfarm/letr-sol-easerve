@@ -11,6 +11,7 @@ from langchain_core.runnables.config import RunnableConfig
 
 from langchain.tools import StructuredTool
 from pydantic import BaseModel, Field
+from datetime import datetime, timezone
 
 class UpdateReservationDateInput(BaseModel):
     reservation_uuid: str = Field(..., description="The UUID of the reservation to update")
@@ -29,10 +30,36 @@ def search_reservation(config: RunnableConfig):
     Retrieve reservations based on a phone number.
     The phone_number is retrieved from the RunnableConfig
     Don't ask user for the phone number.
-    Output: reservation details.
+    Show me reservations after the current time.
+    Output: 
+    ex1) 안녕하세요! 현재 다가오는 예약은 다음과 같습니다
+
+    1. 서비스: 위생미용
+       예약 날짜: 2024년 12월 20일 14:00
+       상태: 예약대기
+       가격: 15,000원
+
+    2. 서비스: 위생미용
+       예약 날짜: 2024년 12월 26일 14:00
+       상태: 예약대기
+       가격: 15,000원
+
+    예약과 관련해 도움이 필요하시면 언제든지 말씀해 주세요!
+
+    ex2) 안녕하세요! 현재 예약이 존재하지 않습니다. 새로운 예약을 원하시면 말씀해주세요!
     """
+    #few shot
     phone_number = config.get("configurable", {}).get("phone_number")
-    return get_reservations_by_phone(phone_number)
+    reservations = get_reservations_by_phone(phone_number)
+    current_time = datetime.now(timezone.utc)
+
+    #현재시간 이후의 예약만 가져오기
+    upcoming_reservations = [
+        reservation for reservation in reservations
+        if datetime.fromisoformat(reservation['reservation_date']) > current_time
+    ]
+
+    return upcoming_reservations
 
 # @tool
 # def update_reservation(reservation_uuid: str, new_date: str):

@@ -49,6 +49,6 @@ def parse_phone_number(text):
     :return: 파싱된 휴대폰 번호 리스트
     """
     # 대한민국 휴대폰 번호 정규식 패턴 (하이픈 없이)
-    pattern = r"(01[016789]\d{7,8})"
-    matches = re.match(pattern, text)
+    pattern = r"(01[016789]\d{8})"
+    matches = re.findall(pattern, text)
     return matches
