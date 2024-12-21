@@ -10,8 +10,8 @@ def init_db():
     # 채팅방(세션) 테이블
     c.execute(
         """
-    CREATE TABLEhat_sessions (
-        id INTEGER PRIMARY KEY  IF NOT EXISTS cAUTOINCREMENT,
+    CREATE TABLE IF NOT EXISTS chat_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         phone_number TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
