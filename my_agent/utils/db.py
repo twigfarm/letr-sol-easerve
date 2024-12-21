@@ -1,6 +1,5 @@
 import sqlite3
 from langchain_core.messages import HumanMessage, AIMessage
-from time import time
 
 DB_PATH = "chat_history.db"
 
@@ -63,7 +62,7 @@ def create_session(name: str) -> int:
     session_id = c.lastrowid
     conn.close()
     if not session_id:
-        return int(time())
+        raise Exception("Failed to create a new session")
     return session_id
 
 

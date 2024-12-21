@@ -32,8 +32,11 @@ def sidebar_ui():
 
     # 새 채팅방 생성 버튼
     if st.button("새 채팅방", use_container_width=True):
-        new_id = create_session("")  # 빈 이름으로 채팅방 생성
-        set_selected_session(new_id)
+        try:
+            new_id = create_session("")  # 빈 이름으로 채팅방 생성
+            set_selected_session(new_id)
+        except Exception as e:
+            st.error(f"채팅방을 생성하는 중 오류가 발생했습니다: {e}")
         st.rerun()
 
     # 채팅방 목록 표시
