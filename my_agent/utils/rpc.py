@@ -54,7 +54,6 @@ def create_reservation(
     response = supabase.rpc(
         "create_reservation",
         {
-            "pet_id":reservation_info.pet_id,
             "status":reservation_info.status,
             "service_name":reservation_info.service_name,
             "weight":reservation_info.weight,
