@@ -1,7 +1,12 @@
 from pydantic import BaseModel, Field
 from typing import Optional
-from langchain_core.tools import tool
-from .tools_prompt import pet_prompt_template, reservation_prompt_template, grade_weight_range_chain, weight_dictionary
+from langchain_core.tools import tool, Tool
+from .tools_prompt import (
+    pet_prompt_template,
+    reservation_prompt_template,
+    grade_weight_range_chain,
+    weight_dictionary,
+)
 from langchain_openai import ChatOpenAI
 from ..rpc import get_service_by_breed_and_weight, create_reservation
 from langchain_core.prompts import ChatPromptTemplate
@@ -11,6 +16,7 @@ from my_agent.utils.grade_doc import retrieval_grader
 from my_agent.utils.vector_db import breeds_database
 
 llm = ChatOpenAI(model="gpt-4o-mini")
+
 
 class Pet(BaseModel):
     """Information about a pet.
@@ -23,12 +29,14 @@ class Pet(BaseModel):
     2. `weight` and `breedType` are required fields and must be provided during validation.
     3. Each field has a `description` -- this description is used by the LLM.
     Having a good description can help improve extraction results.
-"""
+    """
+
     name: Optional[str] = Field(description="The name of the pet")
     breed_type: Optional[str] = Field(description="The type of the breed")
     breed: Optional[str] = Field(description="The breed of the pet")
     weight: Optional[float] = Field(description="The weight of the pet")
     age: Optional[int] = Field(description="The age of the pet")
+
 
 class Reservation(BaseModel):
     """Information about a reservation.
@@ -40,18 +48,27 @@ class Reservation(BaseModel):
     1. Each field is an `optional` except for `reservation_date`, `price` which is required.
        Optional fields allow the model to decline to extract their values if not provided.
     2. Providing detailed descriptions for each field can help improve the accuracy of extraction results.
-"""
+    """
+
     pet_id: Optional[str] = Field(default=None, description="The ID of the pet")
-    status: Optional[str] = Field(default="예약대기", description="The status of the reservation")
+    status: Optional[str] = Field(
+        default="예약대기", description="The status of the reservation"
+    )
     service_name: Optional[str] = Field(description="The name of the service")
     weight: Optional[float] = Field(description="The weight of the pet")
-    reservation_date: Optional[str] = Field(description="The date of the reservation, must have a value")
+    reservation_date: Optional[str] = Field(
+        description="The date of the reservation, must have a value"
+    )
     price: Optional[int] = Field(description="The price of the service")
+
 
 structured_pet_llm = llm.with_structured_output(schema=Pet)
 structured_reservation_llm = llm.with_structured_output(schema=Reservation)
 fill_pet_info_runnable = pet_prompt_template | structured_pet_llm
-fill_reservation_info_runnable = reservation_prompt_template | structured_reservation_llm
+fill_reservation_info_runnable = (
+    reservation_prompt_template | structured_reservation_llm
+)
+
 
 # 주어진 강아지 정보로부터 breed type을 채워넣는 함수
 def fill_breed_type(query: str, retrieved_docs) -> Pet:
@@ -59,7 +76,7 @@ def fill_breed_type(query: str, retrieved_docs) -> Pet:
     breed_type_info = None
     for doc in retrieved_docs:
         # 각 문서의 page_content에서 name과 type을 파싱
-        lines = doc.page_content.split('\n')
+        lines = doc.page_content.split("\n")
         name_line = next((line for line in lines if line.startswith("name:")), None)
         type_line = next((line for line in lines if line.startswith("type:")), None)
         breed = name_line.split(":")[-1].strip()  # name 값 추출
@@ -70,8 +87,10 @@ def fill_breed_type(query: str, retrieved_docs) -> Pet:
         extracted_pet.breed_type = breed_type_info
     return extracted_pet
 
+
 def fill_reservation_info(query: str) -> Reservation:
     return fill_reservation_info_runnable.invoke({"query": query})
+
 
 @tool
 def get_service_menu(query: str):
@@ -89,15 +108,21 @@ def get_service_menu(query: str):
           accurate matching of services based on the pet's breed type and weight range.
     """
     documents = breeds_database.similarity_search(query, k=1)
-    grade_result = retrieval_grader.invoke({"document": documents[0].page_content, "question": query})
+    grade_result = retrieval_grader.invoke(
+        {"document": documents[0].page_content, "question": query}
+    )
     if grade_result.binary_score == "no":
-         return "강아지 품종명을 정확하게 알려주세요. 예: '포메라니안, 5kg'"
+        return "강아지 품종명을 정확하게 알려주세요. 예: '포메라니안, 5kg'"
     pet_info: Pet = fill_breed_type(query, documents)
-    weight_range = grade_weight_range_chain.invoke({"pet_info": pet_info, "weight_dictionary": weight_dictionary})
+    weight_range = grade_weight_range_chain.invoke(
+        {"pet_info": pet_info, "weight_dictionary": weight_dictionary}
+    )
     if pet_info.breed_type != "4":
         return get_service_by_breed_and_weight(int(pet_info.breed_type), weight_range)
-    else :
-        service_data = get_service_by_breed_and_weight(3, weight_range) #일단 3으로 설정하고 다시 세팅, DB에 데이터가 없음
+    else:
+        service_data = get_service_by_breed_and_weight(
+            3, weight_range
+        )  # 일단 3으로 설정하고 다시 세팅, DB에 데이터가 없음
         price_per_kg = {
             "위생미용+목욕": 7000,
             "클리핑": 10000,
@@ -110,6 +135,7 @@ def get_service_menu(query: str):
             if service_name in price_per_kg:
                 service["price"] = price_per_kg[service_name] * int(pet_info.weight)
     return service_data
+
 
 @tool
 def make_reservation(
@@ -128,9 +154,7 @@ def make_reservation(
         - Without using this tool, it is not possible to proceed with a grooming reservation.
     """
     reservation_info: Reservation = fill_reservation_info(query)
-    response = create_reservation(
-       reservation_info=reservation_info
-    )
+    response = create_reservation(reservation_info=reservation_info)
     return response
 
 #using co-star
@@ -157,7 +181,9 @@ add_reservation_assistant_prompt = ChatPromptTemplate.from_messages(
     ]
 ).partial(time=datetime.now)
 
-tools = [get_service_menu, make_reservation]
-llm_with_reservation_rag = llm.bind_tools(tools)
-rag_assistant_tool_node = ToolNode(tools=tools)
+rag_safe_tools = [get_service_menu]
+rag_sensitive_tools = [make_reservation]
+rag_sensitive_tool_names = {t.name for t in rag_sensitive_tools}
+rag_tools: list[Tool] = rag_safe_tools + rag_sensitive_tools
+llm_with_reservation_rag = llm.bind_tools(rag_tools)
 rag_runnable = add_reservation_assistant_prompt | llm_with_reservation_rag

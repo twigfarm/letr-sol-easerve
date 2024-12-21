@@ -1,7 +1,12 @@
 from langchain.tools import Tool
 from langchain_core.tools import tool
-from my_agent.utils.rpc import get_reservations_by_phone, update_reservation_date, cancel_reservation
+from my_agent.utils.rpc import (
+    get_reservations_by_phone,
+    update_reservation_date,
+    cancel_reservation,
+)
 from langchain_core.runnables.config import RunnableConfig
+
 # @tool vs Tool
 # Tool은 클래스이며 @tool 데코레이터는 함수를 Tool 객체로 더 쉽게 반환해준다.
 # @tool 사용 권장
@@ -13,16 +18,24 @@ from langchain.tools import StructuredTool
 from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 
+
 class UpdateReservationDateInput(BaseModel):
-    reservation_uuid: str = Field(..., description="The UUID of the reservation to update")
-    new_date: str = Field(..., description="The new date and time for the reservation (format: YYYY-MM-DD HH:MM:SS)")
+    reservation_uuid: str = Field(
+        ..., description="The UUID of the reservation to update"
+    )
+    new_date: str = Field(
+        ...,
+        description="The new date and time for the reservation (format: YYYY-MM-DD HH:MM:SS)",
+    )
+
 
 update_reservation = StructuredTool.from_function(
     func=update_reservation_date,
     name="UpdateReservationDate",
     description="Update the date of an existing reservation",
-    args_schema=UpdateReservationDateInput
+    args_schema=UpdateReservationDateInput,
 )
+
 
 @tool
 def search_reservation(config: RunnableConfig):
@@ -61,6 +74,7 @@ def search_reservation(config: RunnableConfig):
 
     return upcoming_reservations
 
+
 # @tool
 # def update_reservation(reservation_uuid: str, new_date: str):
 #     """
@@ -70,6 +84,7 @@ def search_reservation(config: RunnableConfig):
 #     """
 #     return update_reservation_date(reservation_uuid, new_date)
 
+
 @tool
 def delete_reservation(reservation_uuid: str):
     """
@@ -78,8 +93,9 @@ def delete_reservation(reservation_uuid: str):
     """
     return cancel_reservation(reservation_uuid)
 
-safe_tools = [search_reservation]
-sensitive_tools = [update_reservation, delete_reservation]
-sensitive_tool_names = {t.name for t in sensitive_tools}
 
-tools: list[Tool] = safe_tools + sensitive_tools
+primary_safe_tools = [search_reservation]
+primary_sensitive_tools = [update_reservation, delete_reservation]
+primary_sensitive_tool_names = {t.name for t in primary_sensitive_tools}
+
+primary_tools: list[Tool] = primary_safe_tools + primary_sensitive_tools
