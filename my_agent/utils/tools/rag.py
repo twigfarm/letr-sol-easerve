@@ -155,6 +155,8 @@ def make_reservation(
     Note:
         - This tool must be used to create a grooming reservation for your pet after selecting the services using the `get_service_menu` tool.
         - Without using this tool, it is not possible to proceed with a grooming reservation.
+        - Ensure to include both **date** and **time** in the reservation query to successfully schedule the grooming service.
+        - The **price** of the selected service must be included and stored when creating the reservation.
     """
     reservation_info: Reservation = fill_reservation_info(query)
     response = create_reservation(reservation_info=reservation_info, phone=config["configurable"]["phone_number"])
