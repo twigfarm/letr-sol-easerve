@@ -44,7 +44,7 @@ def search_reservation(config: RunnableConfig):
     The phone_number is retrieved from the RunnableConfig
     Don't ask user for the phone number.
     Show me reservations after the current time.
-    Output: 
+    Output:
     ex1) 안녕하세요! 현재 다가오는 예약은 다음과 같습니다
 
     1. 서비스: 위생미용
@@ -61,15 +61,17 @@ def search_reservation(config: RunnableConfig):
 
     ex2) 안녕하세요! 현재 예약이 존재하지 않습니다. 새로운 예약을 원하시면 말씀해주세요!
     """
-    #few shot
+    # few shot
     phone_number = config.get("configurable", {}).get("phone_number")
+    print(phone_number)
     reservations = get_reservations_by_phone(phone_number)
     current_time = datetime.now(timezone.utc)
 
-    #현재시간 이후의 예약만 가져오기
+    # 현재시간 이후의 예약만 가져오기
     upcoming_reservations = [
-        reservation for reservation in reservations
-        if datetime.fromisoformat(reservation['reservation_date']) > current_time
+        reservation
+        for reservation in reservations
+        if datetime.fromisoformat(reservation["reservation_date"]) > current_time
     ]
 
     return upcoming_reservations
