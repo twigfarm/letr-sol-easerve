@@ -22,6 +22,7 @@ from my_agent.utils.tools.reservation import (
 )
 from my_agent.utils.tools.rag import rag_safe_tools, rag_sensitive_tools
 from my_agent.utils.utils import parse_phone_number
+from langchain_core.messages import HumanMessage
 
 
 # Define the config
@@ -92,21 +93,20 @@ if __name__ == "__main__":
 
     if "config" not in st.session_state:
         thread_id = str(uuid.uuid4())
-
-        st.session_state.config = {
-            "configurable": {"phone_number": "", "thread_id": thread_id}
-        }
-    print(st.session_state.config)
+        st.session_state.config = {"configurable": {"phone_number": "", "thread_id": thread_id}}
 
     st.title("강아지 미용 예약 서비스 챗봇입니다!")
 
+    str = (
+        "안녕하세요! \n이리온 댕댕입니다 🐾  \n"
+        "더욱 편리하고 개인 맞춤형 예약 서비스를  \n"
+        "제공하기 위해 휴대전화 번호를 입력해 주세요.  \n"
+        "입력하신 번호는 본인 확인과 이전 상담 기록  \n"
+        "확인에 활용되며, 고객님과 반려동물을 위한 최적의 서비스를 준비하는 데 사용됩니다. 😊  \n"
+        "ex)01012345678  \n"
+    )
     if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {
-                "role": "assistant",
-                "content": "안녕하세요! 먼저 전화번호를 입력해주세요! ex)01012345678",
-            }
-        ]
+        st.session_state.messages = [{"role": "assistant", "content": str}]
 
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
@@ -119,20 +119,12 @@ if __name__ == "__main__":
         st.session_state.messages.append({"role": "user", "content": prompt})
         if st.session_state.config["configurable"]["phone_number"] == "":
             phone_number = parse_phone_number(prompt)
-            print(phone_number)
-            if phone_number == None:
-                st.session_state.messages.append(
-                    {
-                        "role": "assistant",
-                        "content": "전화번호가 잘못 입력되었습니다 다시 입력해주세요.",
-                    }
-                )
+            if phone_number == []:
+                st.session_state.messages.append({"role": "assistant", "content": "전화번호가 잘못 입력되었습니다 다시 입력해주세요."})
                 st.rerun()
-            else:
-                st.session_state.config["configurable"]["phone_number"] = prompt
-                st.session_state.messages.append(
-                    {"role": "assistant", "content": "전화번호 입력이 완료되었습니다!"}
-                )
+            else: 
+                st.session_state.config["configurable"]["phone_number"] = phone_number[0]
+                st.session_state.messages.append({"role": "assistant", "content": "전화번호 입력이 완료되었습니다!"})
                 st.rerun()
         _printed = set()
 
@@ -146,9 +138,12 @@ if __name__ == "__main__":
             final_response = event["messages"][-1].content
             st.session_state.event = event
 
+
         response = f"{final_response}"
         if final_response == "":
             response = "진행하시겠습니까?"
+        if (isinstance(st.session_state.event["messages"][-1],HumanMessage)):
+            response = "죄송해요, 말씀하신 내용을 잘 이해하지 못했어요. 다시 시도하시거나, 구체적인 질문을 입력해 주세요. 예를 들어 '예약 변경' 또는 '가격 확인' 등을 말씀해주시면 더 잘 도와드릴 수 있어요!"
         with st.chat_message("assistant"):
             st.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
@@ -178,10 +173,7 @@ if __name__ == "__main__":
                     Command(resume={"action": "continue"}),
                     st.session_state.config,
                 )
-                st.session_state.messages[-1]["content"] = result["messages"][
-                    -1
-                ].content
-                print(f"result: {result}")
+                st.session_state.messages[-1]['content'] = result["messages"][-1].content
             else:
                 result = st.session_state.graph.invoke(
                     Command(resume={"action": "terminate"}),

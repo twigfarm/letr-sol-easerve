@@ -71,7 +71,7 @@ class Assistant:
 
 
 def rag_assistant(state: ReservState):
-    result = llm_with_reservation_rag.invoke(state["messages"])
+    result = rag_runnable.invoke(state["messages"])
     next_node = tools_condition({"messages": [result]})
     if next_node == END:
         print("end")
