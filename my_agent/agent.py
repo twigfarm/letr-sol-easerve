@@ -16,11 +16,11 @@ from my_agent.utils.nodes import Assistant, route_question_adaptive, rag_assista
 from my_agent.utils.utils import create_tool_node_with_fallback
 from my_agent.utils.runnables import assistant_runnable
 from my_agent.utils.tools.reservation import (
-    safe_tools,
-    sensitive_tools,
-    sensitive_tool_names,
+    primary_safe_tools,
+    primary_sensitive_tools,
+    primary_sensitive_tool_names,
 )
-from my_agent.utils.tools.rag import rag_assistant_tool_node
+from my_agent.utils.tools.rag import rag_safe_tools, rag_sensitive_tools
 from my_agent.utils.utils import parse_phone_number
 
 
@@ -36,9 +36,9 @@ def route_tools(state: ReservState):
     ai_message = state["messages"][-1]
 
     first_tool_call = ai_message.tool_calls[0]
-    if first_tool_call["name"] in sensitive_tool_names:
-        return "sensitive_tools"
-    return "safe_tools"
+    if first_tool_call["name"] in primary_sensitive_tool_names:
+        return "primary_sensitive_tools"
+    return "primary_safe_tools"
 
 
 # 기본적인 연결은 add_edge로, add_conditional_edge 보다는 Command 처리방식이 권장됨
@@ -47,21 +47,24 @@ def buildGraph():
 
     builder.add_node("first_question_router", route_question_adaptive)
     builder.add_node("reservation_assistant", Assistant(assistant_runnable))
-    builder.add_node("safe_tools", create_tool_node_with_fallback(safe_tools))
-    builder.add_node("sensitive_tools", create_tool_node_with_fallback(sensitive_tools))
+    builder.add_node(
+        "primary_safe_tools", create_tool_node_with_fallback(primary_safe_tools)
+    )
+    builder.add_node(
+        "primary_sensitive_tools",
+        create_tool_node_with_fallback(primary_sensitive_tools),
+    )
     builder.add_node("rag_assistant", rag_assistant)
-    builder.add_node("tools", rag_assistant_tool_node)
-
-    builder.add_edge(START, "first_question_router")
-
-    builder.add_conditional_edges(
-        "rag_assistant",
-        tools_condition,
+    builder.add_node("rag_safe_tools", create_tool_node_with_fallback(rag_safe_tools))
+    builder.add_node(
+        "rag_sensitive_tools", create_tool_node_with_fallback(rag_sensitive_tools)
     )
 
-    builder.add_edge("safe_tools", "reservation_assistant")
-    builder.add_edge("sensitive_tools", "reservation_assistant")
-    builder.add_edge("tools", "rag_assistant")
+    builder.add_edge(START, "first_question_router")
+    builder.add_edge("primary_safe_tools", "reservation_assistant")
+    builder.add_edge("primary_sensitive_tools", "reservation_assistant")
+    builder.add_edge("rag_safe_tools", "rag_assistant")
+    builder.add_edge("rag_sensitive_tools", "rag_assistant")
 
     memory = MemorySaver()
     graph = builder.compile(
@@ -90,13 +93,20 @@ if __name__ == "__main__":
     if "config" not in st.session_state:
         thread_id = str(uuid.uuid4())
 
-        st.session_state.config = {"configurable": {"phone_number": "", "thread_id": thread_id}}
+        st.session_state.config = {
+            "configurable": {"phone_number": "", "thread_id": thread_id}
+        }
     print(st.session_state.config)
 
     st.title("강아지 미용 예약 서비스 챗봇입니다!")
 
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "안녕하세요! 먼저 전화번호를 입력해주세요! ex)01012345678"}]
+        st.session_state.messages = [
+            {
+                "role": "assistant",
+                "content": "안녕하세요! 먼저 전화번호를 입력해주세요! ex)01012345678",
+            }
+        ]
 
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:
@@ -111,16 +121,25 @@ if __name__ == "__main__":
             phone_number = parse_phone_number(prompt)
             print(phone_number)
             if phone_number == None:
-                st.session_state.messages.append({"role": "assistant", "content": "전화번호가 잘못 입력되었습니다 다시 입력해주세요."})
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": "전화번호가 잘못 입력되었습니다 다시 입력해주세요.",
+                    }
+                )
                 st.rerun()
-            else: 
+            else:
                 st.session_state.config["configurable"]["phone_number"] = prompt
-                st.session_state.messages.append({"role": "assistant", "content": "전화번호 입력이 완료되었습니다!"})
+                st.session_state.messages.append(
+                    {"role": "assistant", "content": "전화번호 입력이 완료되었습니다!"}
+                )
                 st.rerun()
         _printed = set()
 
         events = st.session_state.graph.stream(
-            {"messages": st.session_state.messages}, st.session_state.config, stream_mode="values"
+            {"messages": st.session_state.messages},
+            st.session_state.config,
+            stream_mode="values",
         )
         for event in events:
             _print_event(event, _printed)
@@ -166,10 +185,11 @@ if __name__ == "__main__":
             else:
                 result = st.session_state.graph.invoke(
                     Command(resume={"action": "terminate"}),
-
                     st.session_state.config,
                 )
-                st.session_state.messages[-1]['content'] = result["messages"][-1].content
+                st.session_state.messages[-1]["content"] = result["messages"][
+                    -1
+                ].content
             st.session_state.user_input = None
             st.session_state.snapshot = st.session_state.graph.get_state(
                 st.session_state.config

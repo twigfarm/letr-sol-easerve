@@ -1,5 +1,5 @@
 from functools import lru_cache
-from my_agent.utils.tools.reservation import tools
+from my_agent.utils.tools.reservation import primary_tools
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from datetime import date, datetime
@@ -14,7 +14,7 @@ def _get_model(model_name: str):
     else:
         raise ValueError(f"Unsupported model type: {model_name}")
 
-    model = model.bind_tools(tools)
+    model = model.bind_tools(primary_tools)
     return model
 
 
@@ -24,7 +24,6 @@ assistant_prompt = ChatPromptTemplate.from_messages(
             "system",
             "You are a helpful customer support assistant for puppy haircut Reservation Service. "
             " Use the provided tools to search reservations, add reservation, update reservation and delete reservation"
-
             "if request is not related to reservation, say 'I'm sorry, I can't help with that'."
             "don't request uuid because it is get from phone number"
             "1. GetReservationsByPhone: Retrieve reservations based on a phone number. "
