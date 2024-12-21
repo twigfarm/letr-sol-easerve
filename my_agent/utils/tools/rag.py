@@ -50,17 +50,15 @@ class Reservation(BaseModel):
        Optional fields allow the model to decline to extract their values if not provided.
     2. Providing detailed descriptions for each field can help improve the accuracy of extraction results.
     """
-
-    pet_id: Optional[str] = Field(default=None, description="The ID of the pet")
     status: Optional[str] = Field(
-        default="예약대기", description="The status of the reservation"
+        default="예약대기", description="The status of the reservation, must have a value"
     )
-    service_name: Optional[str] = Field(description="The name of the service")
+    service_name: Optional[str] = Field(description="The name of the service, must have a value")
     weight: Optional[float] = Field(description="The weight of the pet")
     reservation_date: Optional[str] = Field(
         description="The date of the reservation, must have a value"
     )
-    price: Optional[int] = Field(description="The price of the service")
+    price: Optional[int] = Field(description="The price of the service, must have a value")
     phone: Optional[str] = Field(description="The phone number of the customer, must have a value")
 
 
