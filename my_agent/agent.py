@@ -188,7 +188,17 @@ if __name__ == "__main__":
                     Command(resume={"action": "continue"}),
                     st.session_state.config,
                 )
-                st.session_state.messages[-1]['content'] = result["messages"][-1].content
+                print(st.session_state.messages[-1])
+                print(result["messages"][-1])
+                # AIMessage를 수정할 수 없는 문제 발생
+                if isinstance(st.session_state.messages[-1], AIMessage):
+                    st.session_state.messages[-1] = AIMessage(
+                        content=result["messages"][-1].content,
+                        additional_kwargs=result["messages"][-1].additional_kwargs,
+                        response_metadata=result["messages"][-1].response_metadata
+                    )
+                else:
+                    st.session_state.messages[-1]['content'] = result["messages"][-1].content
             else:
                 result = st.session_state.graph.invoke(
                     Command(resume={"action": "terminate"}),

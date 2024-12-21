@@ -14,6 +14,7 @@ from datetime import datetime
 from langgraph.prebuilt import ToolNode
 from my_agent.utils.grade_doc import retrieval_grader
 from my_agent.utils.vector_db import breeds_database
+from langchain_core.runnables.config import RunnableConfig
 
 llm = ChatOpenAI(model="gpt-4o-mini")
 
@@ -60,6 +61,7 @@ class Reservation(BaseModel):
         description="The date of the reservation, must have a value"
     )
     price: Optional[int] = Field(description="The price of the service")
+    phone: Optional[str] = Field(description="The phone number of the customer, must have a value")
 
 
 structured_pet_llm = llm.with_structured_output(schema=Pet)
@@ -140,6 +142,7 @@ def get_service_menu(query: str):
 @tool
 def make_reservation(
     query: str,
+    config: RunnableConfig,
 ):
     """
     Creates a reservation for a pet grooming service.
@@ -152,9 +155,11 @@ def make_reservation(
     Note:
         - This tool must be used to create a grooming reservation for your pet after selecting the services using the `get_service_menu` tool.
         - Without using this tool, it is not possible to proceed with a grooming reservation.
+        - Ensure to include both **date** and **time** in the reservation query to successfully schedule the grooming service.
+        - The **price** of the selected service must be included and stored when creating the reservation.
     """
     reservation_info: Reservation = fill_reservation_info(query)
-    response = create_reservation(reservation_info=reservation_info)
+    response = create_reservation(reservation_info=reservation_info, phone=config["configurable"]["phone_number"])
     return response
 
 #using co-star
@@ -167,7 +172,7 @@ add_reservation_assistant_prompt = ChatPromptTemplate.from_messages(
             First, collect the dog’s breed and weight to determine the suitable grooming options using the provided tool(get_service_menu).
             if user already input what type of grooming service pass the show options and final check of price
             Then, display the available grooming options along with their prices. Finally, guide users to select a grooming service and their preferred date, and proceed to complete the reservation.
-            If the user provides all the necessary inputs, confirm the final price once more before proceeding. 
+            If the user provides all the necessary inputs, confirm the final price once more before proceeding.
             Guide users through the reservation process in clear, simple steps while making it easy to understand.
             Concise and friendly conversational style.
             Kind and professional tone.
