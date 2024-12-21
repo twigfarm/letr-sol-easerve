@@ -6,7 +6,7 @@ from my_agent.utils.tools.user import fetch_user_info
 from my_agent.utils.runnables import router_runnable
 from my_agent.utils.tools.reservation import primary_sensitive_tool_names
 from my_agent.utils.tools.rag import rag_sensitive_tool_names
-from .tools.rag import llm_with_reservation_rag
+from .tools.rag import rag_runnable
 from langgraph.types import interrupt, Command
 from langgraph.prebuilt import tools_condition
 from langgraph.graph import END
@@ -74,7 +74,6 @@ def rag_assistant(state: ReservState):
     result = rag_runnable.invoke(state["messages"])
     next_node = tools_condition({"messages": [result]})
     if next_node == END:
-        print("end")
         # END로 갈 때 messages 업데이트 하는 방법 찾기
         return Command(goto=END, update={"messages": result})
     first_tool_call = result.tool_calls[0]
@@ -86,7 +85,7 @@ def rag_assistant(state: ReservState):
             return Command(goto="rag_sensitive_tools", update={"messages": [result]})
         else:
             return Command(
-                goto=END,
+                goto="rag_assistant",
                 update={
                     "messages": [
                         result,
