@@ -10,7 +10,7 @@ from .tools.rag import rag_runnable
 from langgraph.types import interrupt, Command
 from langgraph.prebuilt import tools_condition
 from langgraph.graph import END
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import ToolMessage, AIMessage
 
 
 def user_info(state: ReservState):
@@ -22,6 +22,7 @@ class Assistant:
         self.runnable = runnable
 
     def __call__(self, state: ReservState, config: RunnableConfig):
+        print("\n ----- reservation assistant -----\n")
         while True:
             result = self.runnable.invoke(state, config=config)
 
@@ -39,13 +40,11 @@ class Assistant:
         # Command로 node 이동
         next_node = tools_condition({"messages": [result]})
         if next_node == END:
-            print(f"terminate, {result.content}")
             # END로 갈 때 messages 업데이트 하는 방법 찾기
             return Command(goto=END, update={"messages": result})
 
         first_tool_call = result.tool_calls[0]
         if first_tool_call["name"] in primary_sensitive_tool_names:
-            print("sensitive")
             human_chk = interrupt({})
             chk_action = human_chk["action"]
             if chk_action == "continue":
@@ -66,24 +65,26 @@ class Assistant:
                     },
                 )
         else:
-            print("safe")
             return Command(goto="primary_safe_tools", update={"messages": [result]})
 
 
 def rag_assistant(state: ReservState):
+    print("\n ----- rag assistant -----")
     result = rag_runnable.invoke(state["messages"])
     next_node = tools_condition({"messages": [result]})
     if next_node == END:
         # END로 갈 때 messages 업데이트 하는 방법 찾기
+        print("----- goto END -----\n")
         return Command(goto=END, update={"messages": result})
     first_tool_call = result.tool_calls[0]
     if first_tool_call["name"] in rag_sensitive_tool_names:
-        print("sensitive")
         human_chk = interrupt({})
         chk_action = human_chk["action"]
         if chk_action == "continue":
+            print("----- goto rag_sensitive_tools -----\n")
             return Command(goto="rag_sensitive_tools", update={"messages": [result]})
         else:
+            print("----- goto rag_assistant -----\n")
             return Command(
                 goto="rag_assistant",
                 update={
@@ -97,6 +98,7 @@ def rag_assistant(state: ReservState):
                 },
             )
     else:
+        print("----- goto rag_safe_tools -----\n")
         return Command(goto="rag_safe_tools", update={"messages": [result]})
 
 
@@ -113,6 +115,19 @@ def route_question_adaptive(state: ReservState):
         elif datasource == "rag_assistant":
             return Command(goto="rag_assistant")
         else:
-            return Command(goto=END)
+            return Command(goto="terminate_irrelevant")
     except Exception as e:
-        return Command(goto=END)
+        return Command(goto="terminate_irrelevant")
+
+
+def terminate_irrelevant_chat(state: ReservState):
+    return Command(
+        goto=END,
+        update={
+            "messages": [
+                AIMessage(
+                    content="죄송해요, 말씀하신 내용을 잘 이해하지 못했어요. 아마 제가 수행할수 없는 범위의 일일지도 몰라요. 다시 시도하시거나, 예약과 관련된 구체적인 질문을 입력해 주세요. 예를 들어 '예약 변경' 또는 '가격 확인' 등을 말씀해주시면 더 잘 도와드릴 수 있어요!"
+                )
+            ]
+        },
+    )
