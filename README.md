@@ -234,16 +234,6 @@ letr-sol-easerve/my_agent/
     │   └── user.py
     ├── utils.py
     └── vector_db.py
-
-letr-sol-easerve/
-├── csv/                    # 데이터 파일
-│   └── reservation_data/   # 예약 관련 데이터
-├── my_agent/              # 에이전트 관련 코드
-│   ├── agent.py          # 메인 에이전트 로직
-│   ├── conversation.py   # 대화 관리 시스템
-│   └── database.py      # 데이터베이스 연동
-├── ReservationAssistant.ipynb  # 주요 기능 구현 노트북
-└── document-loader.ipynb   # 문서 로딩 관련 코드
 ```
 
 ## 기여 방법
