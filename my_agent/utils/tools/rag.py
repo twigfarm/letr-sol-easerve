@@ -160,7 +160,8 @@ def make_reservation(
     response = create_reservation(reservation_info=reservation_info, phone=config["configurable"]["phone_number"])
     return response
 
-#using co-star
+
+# using co-star
 add_reservation_assistant_prompt = ChatPromptTemplate.from_messages(
     [
         (
