@@ -49,17 +49,18 @@ def get_service_by_breed_and_weight(breed_type: int, weight_range: int):
 
 def create_reservation(
     reservation_info,
+    phone: str,
 ):
     response = supabase.rpc(
         "create_reservation",
         {
-            "pet_id": reservation_info.pet_id,
-            "status": reservation_info.status,
-            "service_name": reservation_info.service_name,
-            "weight": reservation_info.weight,
-            "reservation_date": reservation_info.reservation_date,
-            "price": reservation_info.price,
-            "phone": reservation_info.phone,
-        },
+
+            "status":reservation_info.status,
+            "service_name":reservation_info.service_name,
+            "weight":reservation_info.weight,
+            "reservation_date":reservation_info.reservation_date,
+            "price":reservation_info.price,
+            "phone":phone
+        }
     ).execute()
     return response
