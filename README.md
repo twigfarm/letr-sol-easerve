@@ -185,8 +185,11 @@ Primairy Assistant와 Sub Assistant로 나뉘고 LangGraph 특성상의 복잡�
 현재는 도메인/직군에만 사용이 가능한 폐쇄적 형태를 이루고 있지만 모듈화를 통한 오픈소스화 필요
 
 ### 4. 클라이언트 사이드와 결합
-![Screenshot From 2024-12-22 21-57-53](https://github.com/user-attachments/assets/ff78e669-f7df-4250-97f4-cabc02417232)
 
+<div style="text-align:center;">
+  ![Screenshot From 2024-12-22 21-57-53](https://github.com/user-attachments/assets/ff78e669-f7df-4250-97f4-cabc02417232)
+  ![Screenshot From 2024-12-22 21-57-53](https://github.com/user-attachments/assets/ff78e669-f7df-4250-97f4-cabc02417232)
+</div>
 
 ## 설치 및 실행 방법
 
