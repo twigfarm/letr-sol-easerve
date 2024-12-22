@@ -166,7 +166,7 @@ class Assistant:
 
 사용자 예약 추가를 RAG와 결합하여 가격 정보와 함께 처리할 수 있는 관리 시스템 입니다. 구현 방향성은 2번과 같이 assistant가 tool을 호출하고 이를 ToolNode가 처리하는 방식으로 구현되어 있습니다.
 
-## 추후 발전 방향
+## 향후 발전 방향
 
 ### 1. enter_node와 leave(kill)\_node 추가
 
@@ -183,6 +183,10 @@ Primairy Assistant와 Sub Assistant로 나뉘고 LangGraph 특성상의 복잡�
 ### 3. 범용성 높이기
 
 현재는 도메인/직군에만 사용이 가능한 폐쇄적 형태를 이루고 있지만 모듈화를 통한 오픈소스화 필요
+
+### 4. 클라이언트 사이드와 결합
+![Screenshot From 2024-12-22 21-57-53](https://github.com/user-attachments/assets/ff78e669-f7df-4250-97f4-cabc02417232)
+
 
 ## 설치 및 실행 방법
 
