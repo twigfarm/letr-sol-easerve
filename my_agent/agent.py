@@ -12,7 +12,12 @@ from langgraph.graph.message import add_messages, AnyMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import tools_condition
 from my_agent.utils.state import ReservState
-from my_agent.utils.nodes import Assistant, route_question_adaptive, rag_assistant
+from my_agent.utils.nodes import (
+    Assistant,
+    route_question_adaptive,
+    rag_assistant,
+    terminate_irrelevant_chat,
+)
 from my_agent.utils.utils import create_tool_node_with_fallback
 from my_agent.utils.runnables import assistant_runnable
 from my_agent.utils.tools.reservation import (
@@ -60,6 +65,7 @@ def buildGraph():
     builder.add_node(
         "rag_sensitive_tools", create_tool_node_with_fallback(rag_sensitive_tools)
     )
+    builder.add_node("terminate_irrelevant", terminate_irrelevant_chat)
 
     builder.add_edge(START, "first_question_router")
     builder.add_edge("primary_safe_tools", "reservation_assistant")
@@ -80,11 +86,17 @@ from my_agent.utils.utils import _print_event
 import streamlit as st
 from my_agent.utils.db import init_db, update_phone_number
 from my_agent.utils.chat import init_session_state, save_message
-from my_agent.utils.ui import sidebar_ui, get_selected_session, set_selected_session, display_messages
+from my_agent.utils.ui import (
+    sidebar_ui,
+    get_selected_session,
+    set_selected_session,
+    display_messages,
+)
 
 
 def set_user_input(user_input):
     st.session_state.user_input = user_input
+
 
 if __name__ == "__main__":
     load_dotenv()
@@ -97,7 +109,10 @@ if __name__ == "__main__":
     with st.sidebar:
         selected_session_id = sidebar_ui()
         # 세션 선택 변경 시 메시지 로드
-        if selected_session_id is not None and selected_session_id != get_selected_session():
+        if (
+            selected_session_id is not None
+            and selected_session_id != get_selected_session()
+        ):
             set_selected_session(selected_session_id)
 
     current_session_id = get_selected_session()
@@ -131,14 +146,32 @@ if __name__ == "__main__":
             phone_number = parse_phone_number(prompt)
             if phone_number == []:
 
-                st.session_state.messages.append(AIMessage(content="전화번호가 잘못 입력되었습니다 다시 입력해주세요."))
-                save_message(current_session_id, "assistant", "전화번호가 잘못 입력되었습니다 다시 입력해주세요.")
+                st.session_state.messages.append(
+                    AIMessage(
+                        content="전화번호가 잘못 입력되었습니다 다시 입력해주세요."
+                    )
+                )
+                save_message(
+                    current_session_id,
+                    "assistant",
+                    "전화번호가 잘못 입력되었습니다 다시 입력해주세요.",
+                )
                 st.rerun()
             else:
-                st.session_state.config["configurable"]["phone_number"] = phone_number[0]
+                st.session_state.config["configurable"]["phone_number"] = phone_number[
+                    0
+                ]
                 update_phone_number(current_session_id, phone_number[0])
-                st.session_state.messages.append(AIMessage(content="전화번호 입력이 완료되었습니다! 예약 상담을 도와드리겠습니다."))
-                save_message(current_session_id, "assistant", "전화번호 입력이 완료되었습니다! 예약 상담을 도와드리겠습니다.")
+                st.session_state.messages.append(
+                    AIMessage(
+                        content="전화번호 입력이 완료되었습니다! 예약 상담을 도와드리겠습니다."
+                    )
+                )
+                save_message(
+                    current_session_id,
+                    "assistant",
+                    "전화번호 입력이 완료되었습니다! 예약 상담을 도와드리겠습니다.",
+                )
                 st.rerun()
         _printed = set()
 
@@ -152,12 +185,11 @@ if __name__ == "__main__":
             final_response = event["messages"][-1].content
             st.session_state.event = event
 
-
         response = f"{final_response}"
         if final_response == "":
             response = "진행하시겠습니까?"
-        if (isinstance(st.session_state.event["messages"][-1],HumanMessage)):
-            response = "죄송해요, 말씀하신 내용을 잘 이해하지 못했어요. 다시 시도하시거나, 구체적인 질문을 입력해 주세요. 예를 들어 '예약 변경' 또는 '가격 확인' 등을 말씀해주시면 더 잘 도와드릴 수 있어요!"
+        # if (isinstance(st.session_state.event["messages"][-1],HumanMessage)):
+        #     response = "죄송해요, 말씀하신 내용을 잘 이해하지 못했어요. 다시 시도하시거나, 구체적인 질문을 입력해 주세요. 예를 들어 '예약 변경' 또는 '가격 확인' 등을 말씀해주시면 더 잘 도와드릴 수 있어요!"
         with st.chat_message("assistant"):
             st.markdown(response)
         st.session_state.messages.append(AIMessage(content=response))
@@ -195,10 +227,12 @@ if __name__ == "__main__":
                     st.session_state.messages[-1] = AIMessage(
                         content=result["messages"][-1].content,
                         additional_kwargs=result["messages"][-1].additional_kwargs,
-                        response_metadata=result["messages"][-1].response_metadata
+                        response_metadata=result["messages"][-1].response_metadata,
                     )
                 else:
-                    st.session_state.messages[-1]['content'] = result["messages"][-1].content
+                    st.session_state.messages[-1]["content"] = result["messages"][
+                        -1
+                    ].content
             else:
                 result = st.session_state.graph.invoke(
                     Command(resume={"action": "terminate"}),
