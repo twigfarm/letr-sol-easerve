@@ -31,7 +31,7 @@ def sidebar_ui():
     )
 
     # 새 채팅방 생성 버튼
-    if st.button("새 채팅방", use_container_width=True):
+    if st.button("새 채팅방", use_container_width=True, disabled=st.session_state.button_state):
         try:
             new_id = create_session("")  # 빈 이름으로 채팅방 생성
             set_selected_session(new_id)
@@ -50,7 +50,7 @@ def sidebar_ui():
             with col1:
                 display_name = session_name if session_name.strip() else "제목 없음"
                 if st.button(
-                    display_name, key=f"session_{session_id}", use_container_width=True
+                    display_name, key=f"session_{session_id}", use_container_width=True, disabled=st.session_state.button_state
                 ):
                     selected_session_id = session_id
                     set_selected_session(session_id)

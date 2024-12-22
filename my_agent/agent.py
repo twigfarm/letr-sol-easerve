@@ -85,6 +85,7 @@ from my_agent.utils.ui import sidebar_ui, get_selected_session, set_selected_ses
 
 def set_user_input(user_input):
     st.session_state.user_input = user_input
+    st.session_state.button_state = False
 
 if __name__ == "__main__":
     load_dotenv()
@@ -175,6 +176,7 @@ if __name__ == "__main__":
     while st.session_state.snapshot.next:
         is_in_snapshot = True
         if st.session_state.user_input is None:
+            st.session_state.button_state = True
             try:
                 if st.button("Yes", on_click=set_user_input, args=("y",)):
                     print("Yes")
@@ -182,6 +184,7 @@ if __name__ == "__main__":
                     print("No")
             except:
                 user_input = "y"
+            st.rerun()
         if st.session_state.user_input is not None:
             if st.session_state.user_input.strip() == "y":
                 result = st.session_state.graph.invoke(

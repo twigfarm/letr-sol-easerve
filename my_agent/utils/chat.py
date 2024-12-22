@@ -24,3 +24,5 @@ def init_session_state():
         st.session_state.config = {
             "configurable": {"phone_number": "", "thread_id": thread_id}
         }
+    if "button_state" not in st.session_state:
+        st.session_state.button_state = False
