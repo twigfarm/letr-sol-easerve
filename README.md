@@ -1,5 +1,25 @@
 # LETR-SOL: AI 기반 예약 관리 시스템
 
+- [LETR-SOL: AI 기반 예약 관리 시스템](#letr-sol-ai-기반-예약-관리-시스템)
+  - [Architecture](#architecture)
+  - [핵심 로직 설명](#핵심-로직-설명)
+    - [1. LangGraph 기반 상태 관리](#1-langgraph-기반-상태-관리)
+    - [2. Graph 구조](#2-graph-구조)
+    - [3. 도구(Tools) 시스템](#3-도구tools-시스템)
+    - [4. Streamlit 기반 사용자 인터페이스](#4-streamlit-기반-사용자-인터페이스)
+  - [주요 기능 및 구현 예시](#주요-기능-및-구현-예시)
+    - [1. Primary Agent](#1-primary-agent)
+    - [2. 예약 수정, 취소 시스템](#2-예약-수정-취소-시스템)
+    - [3. RAG를 활용한 가격 조회, 예약 추가 시스템](#3-rag를-활용한-가격-조회-예약-추가-시스템)
+  - [추후 발전 방향](#추후-발전-방향)
+    - [1. enter_node와 leave(kill)\_node 추가](#1-enter_node와-leavekill_node-추가)
+    - [2. 동적 라우팅(Command)과 정적 라우팅(Edge)의 적절한 사용](#2-동적-라우팅command과-정적-라우팅edge의-적절한-사용)
+    - [3. 범용성 높이기](#3-범용성-높이기)
+  - [설치 및 실행 방법](#설치-및-실행-방법)
+  - [프로젝트 구조](#프로젝트-구조)
+  - [기여 방법](#기여-방법)
+  - [라이선스](#라이선스)
+
 <p align="left">
     <img alt="License" src="https://img.shields.io/badge/LICENSE-MIT-green">
 </p>
@@ -204,17 +224,16 @@ letr-sol-easerve/my_agent/
     ├── grade_doc.py        # retrieval grader, 문서의 관련성 보장
     ├── nodes.py            # langGraph를 구성하는 Node 모음
     ├── rpc.py              # supabase와 소통하는 rpc 모음
-    ├── runnables.py        # invoke 가능한 runnables 모음
-    ├── state.py            # ai agent에서 공유하는 State 모음
+    ├── runnables.py
+    ├── state.py
     ├── supabase_client.py
     ├── tools/              # Agent가사용하는 tools 모음
-    │   ├── rag.p음
+    │   ├── rag.py
     │   ├── reservation.py
     │   ├── tools_prompt.py
     │   └── user.py
     ├── utils.py
     └── vector_db.py
-
 ```
 
 ## 기여 방법

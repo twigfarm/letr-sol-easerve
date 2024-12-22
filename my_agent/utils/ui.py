@@ -58,16 +58,14 @@ def sidebar_ui():
 
             # 이름 변경 버튼
             with col2:
-                if st.button(
-                    "변경", key=f"edit_{session_id}", use_container_width=True
-                ):
+                if st.button("♻️", key=f"edit_{session_id}", use_container_width=True):
                     st.session_state[f"editing_{session_id}"] = True
                     st.rerun()
 
             # 삭제 버튼
             with col3:
                 if st.button(
-                    "삭제",
+                    "🗑️",
                     key=f"delete_{session_id}",
                     type="secondary",
                     use_container_width=True,
@@ -99,7 +97,6 @@ def sidebar_ui():
                             st.rerun()
 
     return selected_session_id
-
 
 
 def display_messages(messages):
