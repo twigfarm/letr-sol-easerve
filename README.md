@@ -4,7 +4,9 @@
     <img alt="License" src="https://img.shields.io/badge/LICENSE-MIT-green">
 </p>
 
-여기에서는 LangGraph와 OpenAI를 활용하여 자연어 처리 기반의 지능형 예약 관리 시스템을 구현합니다. LangGraph의 Agent 기능을 활용하여 사용자의 예약 요청을 자연스럽게 처리하고, 예약 관련 상담을 수행할 수 있습니다.
+LangGraph를 이용한 AI 기반 예약 관리 시스템입니다. LangGraph를 이용해서 자연어를 처리하고 사용자와의 대화에서 정보를 적절하게 추출합니다. LangGraph를 이용해서 LangChain을 사용했을 때보다 다양하고 유연한 대처가 가능하도록 설계했습니다.
+
+현재는 Open AI의 "gpt-4o-mini" 모델을 사용했습니다. 추후에도 상황에 맞게 여러 LLM의 API를 적절하게 변경하여 사용할 수 있습니다.
 
 ## Architecture
 
@@ -18,13 +20,16 @@
 
 ### 1. LangGraph 기반 상태 관리
 
-프로젝트는 LangGraph의 StateGraph를 활용하여 대화 상태를 관리합니다. 주요 상태 및 노드는 다음과 같습니다:
+프로젝트는 LangGraph의 StateGraph를 활용하여 대화 상태를 관리합니다. 상태관리는 TypedDict로 정의되어 있는 State와 Dict 형식으로 저장되어 있는 config를 사용합니다.
+
+State는 동적 데이터를, config는 정적 데이터를 관리합니다. State는 다음과 같은 개요를 가집니다:
 
 ```python
 class ReservState(TypedDict):
     """예약 시스템의 상태를 관리하는 클래스"""
     messages: List[Message]  # 대화 이력
-    config: Dict  # 설정 정보 (전화번호, thread_id 등)
+    user_info: str
+    documents: List[str]
 ```
 
 ### 2. Graph 구조
@@ -35,28 +40,37 @@ class ReservState(TypedDict):
 def buildGraph():
     builder = StateGraph(ReservState)
 
-    # 주요 노드 정의
-    builder.add_node("first_question_router", route_question_adaptive)  # 초기 질문 라우팅
-    builder.add_node("reservation_assistant", Assistant(assistant_runnable))  # 예약 처리
-    builder.add_node("safe_tools", create_tool_node_with_fallback(safe_tools))  # 안전한 작업
-    builder.add_node("sensitive_tools", create_tool_node_with_fallback(sensitive_tools))  # 민감한 작업
-    builder.add_node("rag_assistant", rag_assistant)  # RAG 기반 응답 생성
+    builder.add_node("first_question_router", route_question_adaptive)
+    builder.add_node("reservation_assistant", Assistant(assistant_runnable))
+    builder.add_node(
+        "primary_safe_tools", create_tool_node_with_fallback(primary_safe_tools)
+    )
+    builder.add_node(
+        "primary_sensitive_tools",
+        create_tool_node_with_fallback(primary_sensitive_tools),
+    )
+    builder.add_node("rag_assistant", rag_assistant)
+    builder.add_node("rag_safe_tools", create_tool_node_with_fallback(rag_safe_tools))
+    builder.add_node(
+        "rag_sensitive_tools", create_tool_node_with_fallback(rag_sensitive_tools)
+    )
 
-    # 노드 간 연결 설정
-    builder.add_edge(START, "first_question_router")
-    builder.add_edge("safe_tools", "reservation_assistant")
-    builder.add_edge("sensitive_tools", "reservation_assistant")
+    builder.add_edge("primary_safe_tools", "reservation_assistant")
+    builder.add_edge("primary_sensitive_tools", "reservation_assistant")
+    builder.add_edge("rag_safe_tools", "rag_assistant")
+    builder.add_edge("rag_sensitive_tools", "rag_assistant")
 ```
 
 ### 3. 도구(Tools) 시스템
 
 예약 관리를 위한 도구들은 안전성에 따라 분류됩니다:
 
-- **Safe Tools**: 기본적인 예약 정보 조회
-- **Sensitive Tools**: 개인정보 관련 작업
-- **RAG Tools**: 지식베이스 기반 응답 생성
+- **Safe Tools**: 정보를 읽는(Read) 툴. DB나 시스템에 영향을 끼치지 않습니다..
+- **Sensitive Tools**: DB나 시스템에 쓰는(Write) 툴. DB나 시스템에 영향을 끼치기 때문에 Human in the loop로 처리합니다.
 
 ### 4. Streamlit 기반 사용자 인터페이스
+
+streamlit을 기반으로 한 챗봇 인터페이스를 구축합니다.
 
 ```python
 def run_chat_interface():
@@ -76,83 +90,97 @@ def run_chat_interface():
 
 ## 주요 기능 및 구현 예시
 
-### 1. 예약 처리 Agent
+### 1. Primary Agent
 
-예약 요청을 처리하는 핵심 Agent의 구현 예시:
+사용자의 요청을 받고 해당 요청을 처리할 수 있는 Agent 또는 Tool을 골라줍니다.
 
-```python
-def process_reservation_request(state: State) -> dict:
-    """
-    사용자의 예약 요청을 처리하는 함수
-
-    Parameters:
-        state (State): 현재 대화 상태 정보
-
-    Returns:
-        dict: 처리된 예약 정보
-
-    Example:
-        Input: "내일 오후 3시에 2인 테이블 예약하고 싶어요"
-        Output: {
-            "date": "2024-12-21",
-            "time": "15:00",
-            "guests": 2,
-            "status": "confirmed"
-        }
-    """
-    # 자연어 처리 및 예약 정보 추출
-    extracted_info = extract_reservation_details(state.message)
-
-    # 예약 가능 여부 확인
-    if check_availability(extracted_info):
-        # 예약 정보 저장
-        reservation_id = save_reservation(extracted_info)
-        return {"status": "success", "reservation_id": reservation_id}
-    else:
-        return {"status": "failed", "reason": "unavailable"}
-```
-
-### 2. 대화 관리 시스템
-
-사용자와의 자연스러운 대화를 위한 대화 관리 시스템:
+간단한 예약의 수정과 취소를 담당하는 경우 reservation_assistant를 사용합니다.
+RAG를 이용해서 가격을 불러오고 예약을 추가하는 경우 rag_assistant를 사용합니다.
+처리하려는 로직과 상관없는 질문이 들어올 수 있습니다. 이의 경우 terminate 분기로 처리되어 답변을 생성하지 않도록 합니다.:
 
 ```python
-class ConversationManager:
-    """
-    대화 흐름을 관리하고 적절한 응답을 생성하는 클래스
+def route_question_adaptive(state: ReservState):
 
-    주요 기능:
-    - 대화 문맥 유지
-    - 사용자 의도 파악
-    - 적절한 응답 생성
-    """
-    def handle_conversation(self, user_input: str) -> str:
-        # 사용자 의도 파악
-        intent = self.identify_intent(user_input)
+    latest_message = state["messages"]
+    try:
+        result = router_runnable.invoke({"messages": latest_message})
 
-        # 의도에 따른 응답 생성
-        if intent == "reservation":
-            return self.handle_reservation(user_input)
-        elif intent == "inquiry":
-            return self.handle_inquiry(user_input)
+        datasource = result.tool
+
+        if datasource == "reservation_assistant":
+            return Command(goto="reservation_assistant")
+        elif datasource == "rag_assistant":
+            return Command(goto="rag_assistant")
         else:
-            return self.generate_general_response(user_input)
+            return Command(goto=END)
+    except Exception as e:
+        return Command(goto=END)
 ```
+
+### 2. 예약 수정, 취소 시스템
+
+사용자 예약의 수정과 취소를 간단하게 처리할 수 있는 관리 시스템 입니다.:
+
+```python
+class Assistant:
+    def __init__(self, runnable: Runnable):
+        self.runnable = runnable
+
+    def __call__(self, state: ReservState, config: RunnableConfig):
+        while True:
+            result = self.runnable.invoke(state, config=config)
+
+            if not result.tool_calls and (
+                not result.content
+                or isinstance(result.content, list)
+                # 설명 필요
+                and not result.content[0].get("text")
+            ):
+                messages = state["messages"] + [("user", "Respond with a real output.")]
+                state = {**state, "messages": messages}
+            else:
+                break
+```
+
+### 3. RAG를 활용한 가격 조회, 예약 추가 시스템
+
+사용자 예약 추가를 RAG와 결합하여 가격 정보와 함께 처리할 수 있는 관리 시스템 입니다. 구현 방향성은 2번과 같이 assistant가 tool을 호출하고 이를 ToolNode가 처리하는 방식으로 구현되어 있습니다.
+
+## 추후 발전 방향
+
+### 1. enter_node와 leave(kill)\_node 추가
+
+Primairy Assistant와 Sub Assistant로 나뉘고 LangGraph 특성상의 복잡도로 LLM의 인지 정확도 하락 문제 발생.
+
+이를 enter_node와 leave_node 로 나누어 현재의 위치와 Stack을 정확하게 알려주는 방법 추가.
+
+### 2. 동적 라우팅(Command)과 정적 라우팅(Edge)의 적절한 사용
+
+동적 라우팅은 Node에서 분기를 처리하며 통일된 코드 양식을 보여주고 동적으로 라우팅이 가능토록 하지만, Node 내부의 복잡도가 증가한다.
+
+이에 이를 적절하게 조화하여 사용할 필요가 있다.
+
+### 3. 범용성 높이기
+
+현재는 도메인/직군에만 사용이 가능한 폐쇄적 형태를 이루고 있지만 모듈화를 통한 오픈소스화 필요
 
 ## 설치 및 실행 방법
 
 1. 저장소 클론
+
 ```bash
 git clone https://github.com/yourusername/letr-sol-easerve.git
 cd letr-sol-easerve
 ```
 
 2. 필요한 패키지 설치
+
 ```bash
 pip install langchain_core langchain_openai langgraph supabase streamlit
 ```
 
 3. 환경 변수 설정
+
 ```bash
 export OPENAI_API_KEY="your-api-key"
 export SUPABASE_URL="your-supabase-url"
@@ -160,6 +188,7 @@ export SUPABASE_KEY="your-supabase-key"
 ```
 
 4. 실행
+
 ```bash
 python3 -m my_agent.agent
 ```
@@ -167,15 +196,25 @@ python3 -m my_agent.agent
 ## 프로젝트 구조
 
 ```
-letr-sol-easerve/
-├── csv/                    # 데이터 파일
-│   └── reservation_data/   # 예약 관련 데이터
-├── my_agent/              # 에이전트 관련 코드
-│   ├── agent.py          # 메인 에이전트 로직
-│   ├── conversation.py   # 대화 관리 시스템
-│   └── database.py      # 데이터베이스 연동
-├── ReservationAssistant.ipynb  # 주요 기능 구현 노트북
-└── document-loader.ipynb   # 문서 로딩 관련 코드
+letr-sol-easerve/my_agent/
+├── agent.py                # agent의 시작점
+└── utils/
+    ├── __init__.py
+    ├── embedding.py        # UPSTAGE 임베딩
+    ├── grade_doc.py        # retrieval grader, 문서의 관련성 보장
+    ├── nodes.py            # langGraph를 구성하는 Node 모음
+    ├── rpc.py              # supabase와 소통하는 rpc 모음
+    ├── runnables.py        # invoke 가능한 runnables 모음
+    ├── state.py            # ai agent에서 공유하는 State 모음
+    ├── supabase_client.py
+    ├── tools/              # Agent가사용하는 tools 모음
+    │   ├── rag.p음
+    │   ├── reservation.py
+    │   ├── tools_prompt.py
+    │   └── user.py
+    ├── utils.py
+    └── vector_db.py
+
 ```
 
 ## 기여 방법
