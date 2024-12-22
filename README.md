@@ -187,8 +187,8 @@ Primairy Assistant와 Sub Assistant로 나뉘고 LangGraph 특성상의 복잡�
 ### 4. 클라이언트 사이드와 결합
 
 <div style="text-align:center;">
-  ![Screenshot From 2024-12-22 21-57-53](https://github.com/user-attachments/assets/ff78e669-f7df-4250-97f4-cabc02417232)
-  ![Screenshot From 2024-12-22 21-57-53](https://github.com/user-attachments/assets/ff78e669-f7df-4250-97f4-cabc02417232)
+  <img src="https://github.com/user-attachments/assets/ff78e669-f7df-4250-97f4-cabc02417232" align="left">
+  <img src="https://github.com/user-attachments/assets/ff78e669-f7df-4250-97f4-cabc02417232" align="left">
 </div>
 
 ## 설치 및 실행 방법
