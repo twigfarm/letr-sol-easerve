@@ -60,6 +60,7 @@ class Reservation(BaseModel):
         description="The date of the reservation, must have a value"
     )
     price: Optional[int] = Field(description="The price of the service")
+    phone: Optional[str] = Field(description="The phone number of the customer")
 
 
 structured_pet_llm = llm.with_structured_output(schema=Pet)
@@ -157,7 +158,8 @@ def make_reservation(
     response = create_reservation(reservation_info=reservation_info)
     return response
 
-#using co-star
+
+# using co-star
 add_reservation_assistant_prompt = ChatPromptTemplate.from_messages(
     [
         (

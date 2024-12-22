@@ -3,6 +3,7 @@ import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
+
 def get_supabase_client() -> Client:
     load_dotenv()
     SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -37,15 +38,14 @@ def cancel_reservation(reservation_uuid: str) -> dict:
     ).execute()
     return "reservation successfully cancelled"
 
+
 def get_service_by_breed_and_weight(breed_type: int, weight_range: int):
     response = supabase.rpc(
         "get_services_by_breed_and_weight",
-        {
-            "breed_type_id": breed_type,
-            "weight_range_id": weight_range
-        }
+        {"breed_type_id": breed_type, "weight_range_id": weight_range},
     ).execute()
     return response
+
 
 def create_reservation(
     reservation_info,
@@ -53,14 +53,13 @@ def create_reservation(
     response = supabase.rpc(
         "create_reservation",
         {
-            "pet_id":reservation_info.pet_id,
-            "status":reservation_info.status,
-            "service_name":reservation_info.service_name,
-            "weight":reservation_info.weight,
-            "reservation_date":reservation_info.reservation_date,
-            "price":reservation_info.price,
-        }
+            "pet_id": reservation_info.pet_id,
+            "status": reservation_info.status,
+            "service_name": reservation_info.service_name,
+            "weight": reservation_info.weight,
+            "reservation_date": reservation_info.reservation_date,
+            "price": reservation_info.price,
+            "phone": reservation_info.phone,
+        },
     ).execute()
     return response
-
-
