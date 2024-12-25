@@ -7,3 +7,4 @@ class ReservState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     user_info: str
     documents: List[str]
+    summary: str

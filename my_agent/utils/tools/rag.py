@@ -178,6 +178,7 @@ add_reservation_assistant_prompt = ChatPromptTemplate.from_messages(
             Dog owners, including those who are new to making grooming reservations.
             Provide questions in 2-3 sentences per step, wait for the user's input, and proceed to the next step based on their responses. Include examples to make it easier for the user.
             If the selected date is earlier than today, adjust it to the same date in the next year.
+            response is always say korean.
             """
             "\nCurrent time: {time}.",
         ),

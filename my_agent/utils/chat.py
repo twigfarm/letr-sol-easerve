@@ -1,6 +1,6 @@
 import streamlit as st
 import uuid
-from .db import load_history, save_message, get_phone_number
+from .db import load_history, save_message, get_phone_number, get_summary
 
 
 def set_selected_session(session_id: int | None):
@@ -8,6 +8,7 @@ def set_selected_session(session_id: int | None):
     if session_id is not None:
         st.session_state["messages"] = load_history(session_id)
         st.session_state.config["configurable"]["phone_number"] = get_phone_number(session_id)
+        st.session_state.summary = get_summary(session_id)
 
 
 def get_selected_session():
@@ -26,3 +27,5 @@ def init_session_state():
         }
     if "button_disabled_state" not in st.session_state:
         st.session_state.button_disabled_state = False
+    if "summary" not in st.session_state:
+        st.session_state.summary = ""

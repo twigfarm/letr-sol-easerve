@@ -11,6 +11,7 @@ from langgraph.types import interrupt, Command
 from langgraph.prebuilt import tools_condition
 from langgraph.graph import END
 from langchain_core.messages import ToolMessage, AIMessage
+from my_agent.utils.memory import get_messages_with_summary
 
 
 def user_info(state: ReservState):
@@ -23,6 +24,7 @@ class Assistant:
 
     def __call__(self, state: ReservState, config: RunnableConfig):
         print("\n ----- reservation assistant -----\n")
+        state = get_messages_with_summary(state) 
         while True:
             result = self.runnable.invoke(state, config=config)
 
@@ -70,6 +72,7 @@ class Assistant:
 
 def rag_assistant(state: ReservState):
     print("\n ----- rag assistant -----")
+    state = get_messages_with_summary(state) 
     result = rag_runnable.invoke(state["messages"])
     next_node = tools_condition({"messages": [result]})
     if next_node == END:
@@ -105,6 +108,9 @@ def rag_assistant(state: ReservState):
 def route_question_adaptive(state: ReservState):
 
     latest_message = state["messages"]
+    # latest_message = state["messages"][-1].content
+    print("----------------------------is summarized?--------------------")
+    print(state)
     try:
         result = router_runnable.invoke({"messages": latest_message})
 

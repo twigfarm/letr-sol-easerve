@@ -14,6 +14,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         phone_number TEXT NOT NULL,
+        summary TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """
@@ -125,3 +126,32 @@ def delete_session(session_id: int):
     c.execute("DELETE FROM chat_sessions WHERE id = ?", (session_id,))
     conn.commit()
     conn.close()
+
+def save_summary(session_id, summary):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        """
+        UPDATE chat_sessions
+        SET summary = ?
+        WHERE id = ?
+        """,
+        (summary, session_id),
+    )
+    conn.commit()
+    conn.close()
+
+def get_summary(session_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        """
+        SELECT summary
+        FROM chat_sessions
+        WHERE id = ?
+        """,
+        (session_id,),
+    )
+    summary = c.fetchone()
+    conn.close()
+    return summary[0] if summary else None

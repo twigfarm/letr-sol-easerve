@@ -28,6 +28,8 @@ from my_agent.utils.tools.reservation import (
 from my_agent.utils.tools.rag import rag_safe_tools, rag_sensitive_tools
 from my_agent.utils.utils import parse_phone_number
 from langchain_core.messages import HumanMessage, AIMessage
+from my_agent.utils.memory import summarize_conversation, should_summarize
+
 
 
 # Define the config
@@ -51,6 +53,8 @@ def route_tools(state: ReservState):
 def buildGraph():
     builder = StateGraph(ReservState)
 
+    builder.add_node("should_summarize", should_summarize)
+    builder.add_node("summarize_conversation", summarize_conversation)
     builder.add_node("first_question_router", route_question_adaptive)
     builder.add_node("reservation_assistant", Assistant(assistant_runnable))
     builder.add_node(
@@ -67,7 +71,8 @@ def buildGraph():
     )
     builder.add_node("terminate_irrelevant", terminate_irrelevant_chat)
 
-    builder.add_edge(START, "first_question_router")
+    builder.add_edge(START, "should_summarize")
+    builder.add_edge("summarize_conversation", "first_question_router")
     builder.add_edge("primary_safe_tools", "reservation_assistant")
     builder.add_edge("primary_sensitive_tools", "reservation_assistant")
     builder.add_edge("rag_safe_tools", "rag_assistant")
@@ -84,7 +89,7 @@ from dotenv import load_dotenv
 from langchain_core.messages import ToolMessage
 from my_agent.utils.utils import _print_event
 import streamlit as st
-from my_agent.utils.db import init_db, update_phone_number
+from my_agent.utils.db import init_db, update_phone_number, save_summary
 from my_agent.utils.chat import init_session_state, save_message
 from my_agent.utils.ui import (
     sidebar_ui,
@@ -176,8 +181,16 @@ if __name__ == "__main__":
                 st.rerun()
         _printed = set()
 
+        print(st.session_state.messages)
+        print(type(st.session_state.messages))
+        recent_messages = st.session_state.messages[-6:]
+        print(recent_messages)
+        print(type(recent_messages))
         events = st.session_state.graph.stream(
-            {"messages": st.session_state.messages},
+            {
+                "messages": recent_messages,
+                "summary": st.session_state.summary
+            },
             st.session_state.config,
             stream_mode="values",
         )
@@ -185,6 +198,10 @@ if __name__ == "__main__":
             _print_event(event, _printed)
             final_response = event["messages"][-1].content
             st.session_state.event = event
+        state = st.session_state.graph.get_state(st.session_state.config).values
+        if 'summary' in state:
+            st.session_state.summary = state['summary']
+            save_summary(current_session_id, st.session_state.summary)
 
         response = f"{final_response}"
         if final_response == "":
