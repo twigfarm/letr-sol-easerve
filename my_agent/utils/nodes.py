@@ -25,6 +25,8 @@ class Assistant:
     def __call__(self, state: ReservState, config: RunnableConfig):
         print("\n ----- reservation assistant -----\n")
         state = get_messages_with_summary(state) 
+        print("-------- system checked ------------")
+        print(state)
         while True:
             result = self.runnable.invoke(state, config=config)
 
@@ -109,8 +111,6 @@ def route_question_adaptive(state: ReservState):
 
     latest_message = state["messages"]
     # latest_message = state["messages"][-1].content
-    print("----------------------------is summarized?--------------------")
-    print(state)
     try:
         result = router_runnable.invoke({"messages": latest_message})
 

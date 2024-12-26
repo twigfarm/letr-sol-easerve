@@ -39,6 +39,6 @@ def summarize_conversation(state: ReservState):
 def should_summarize(state: ReservState):
     messages = state["messages"]
     print(f"len of messages: {len(messages)}")
-    if len(messages) >= 6:
+    if len(messages) >= 11:
         return Command(goto="summarize_conversation")
     return Command(goto="first_question_router")

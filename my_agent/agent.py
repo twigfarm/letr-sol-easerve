@@ -181,11 +181,7 @@ if __name__ == "__main__":
                 st.rerun()
         _printed = set()
 
-        print(st.session_state.messages)
-        print(type(st.session_state.messages))
-        recent_messages = st.session_state.messages[-6:]
-        print(recent_messages)
-        print(type(recent_messages))
+        recent_messages = st.session_state.messages[-11:]
         events = st.session_state.graph.stream(
             {
                 "messages": recent_messages,
@@ -198,10 +194,11 @@ if __name__ == "__main__":
             _print_event(event, _printed)
             final_response = event["messages"][-1].content
             st.session_state.event = event
-        state = st.session_state.graph.get_state(st.session_state.config).values
-        if 'summary' in state:
-            st.session_state.summary = state['summary']
-            save_summary(current_session_id, st.session_state.summary)
+        if final_response != "":
+            state = st.session_state.graph.get_state(st.session_state.config).values
+            if 'summary' in state:
+                st.session_state.summary = state['summary']
+                save_summary(current_session_id, st.session_state.summary)
 
         response = f"{final_response}"
         if final_response == "":
